@@ -1,14 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types/index';
 import { db } from '../services/supabase';
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
+const STORAGE_KEY = '@longevity_user_profile';
 
 interface UserContextType {
   user: UserProfile | null;
   isLoading: boolean;
   setUser: (user: UserProfile | null) => void;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  resetOnboarding: () => Promise<void>;
   logout: () => void;
 }
 
@@ -24,55 +27,89 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const initializeUser = async () => {
     try {
-      const profile = await db.getUserProfile(TEST_USER_ID);
-      if (profile) {
-        setUser(profile);
-      } else {
-        const newProfile: UserProfile = {
-          id: TEST_USER_ID,
-          email: '',
-          name: '',
-          createdAt: new Date(),
-          onboardingCompleted: false,
-          totalChoicesMade: 0,
-        };
-        try {
-          await db.createUserProfile(newProfile);
-        } catch (err) {
-          console.warn('Could not save profile to Supabase:', err);
-        }
-        setUser(newProfile);
+      // Load from AsyncStorage first (instant, works offline)
+      const cached = await AsyncStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setUser({ ...parsed, createdAt: new Date(parsed.createdAt) });
+        setIsLoading(false);
+        // Sync from Supabase in background
+        syncFromSupabase();
+        return;
       }
+
+      // No cache — try Supabase
+      await syncFromSupabase();
     } catch (err) {
-      console.warn('Could not load profile, using local state:', err);
-      setUser({
-        id: TEST_USER_ID,
-        email: '',
-        name: '',
-        createdAt: new Date(),
-        onboardingCompleted: false,
-        totalChoicesMade: 0,
-      });
+      console.warn('Init error, using defaults:', err);
+      const fallback: UserProfile = {
+        id: TEST_USER_ID, email: '', name: '',
+        createdAt: new Date(), onboardingCompleted: false, totalChoicesMade: 0,
+      };
+      setUser(fallback);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user) return;
-    // Optimistic update — apply locally first
-    setUser({ ...user, ...updates });
+  const syncFromSupabase = async () => {
     try {
-      await db.updateUserProfile(user.id, updates);
+      const profile = await db.getUserProfile(TEST_USER_ID);
+      if (profile) {
+        setUser(profile);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      } else {
+        const newProfile: UserProfile = {
+          id: TEST_USER_ID, email: '', name: '',
+          createdAt: new Date(), onboardingCompleted: false, totalChoicesMade: 0,
+        };
+        await db.createUserProfile(newProfile).catch(() => {});
+        setUser(newProfile);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newProfile));
+      }
     } catch (err) {
-      console.warn('Could not sync profile to Supabase:', err);
+      console.warn('Supabase sync failed:', err);
     }
   };
 
-  const logout = () => setUser(null);
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    if (!user) return;
+    const updated = { ...user, ...updates };
+    // Optimistic update — local first
+    setUser(updated);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    // Background sync to Supabase
+    db.updateUserProfile(user.id, { ...updates, email: user.email }).catch(err =>
+      console.warn('Supabase profile update failed:', err)
+    );
+  };
+
+  const resetOnboarding = async () => {
+    if (!user) return;
+
+    const resetProfile: UserProfile = {
+      ...user,
+      name: '',
+      onboardingCompleted: false,
+      primaryArchetype: undefined,
+      riskTolerance: undefined,
+    };
+
+    setUser(resetProfile);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(resetProfile));
+
+    db.resetUserOnboarding(user.id).catch(err =>
+      console.warn('Supabase onboarding reset failed:', err)
+    );
+  };
+
+  const logout = async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    setUser(null);
+  };
 
   return (
-    <UserContext.Provider value={{ user, isLoading, setUser, updateProfile, logout }}>
+    <UserContext.Provider value={{ user, isLoading, setUser, updateProfile, resetOnboarding, logout }}>
       {children}
     </UserContext.Provider>
   );

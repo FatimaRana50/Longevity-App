@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { QuestionCard } from '../components/QuestionCard';
 import { Question, UserChoice } from '../types/index';
 import { db } from '../services/supabase';
-import { nutritionQuestions } from '../data/nutrition-questions';
+import { allQuestions } from '../data/all-questions';
+import { getDailySelection } from '../services/daily';
 import { colors, fonts } from '../theme';
 import { useUser } from '../context/UserContext';
 
@@ -15,78 +17,71 @@ export const QuestionScreen: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userChoices, setUserChoices] = useState<Record<string, UserChoice>>({});
-  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  useEffect(() => {
-    loadQuestions();
-  }, []);
+  useEffect(() => { loadQuestions(); }, []);
 
   const loadQuestions = async () => {
     try {
-      setInitialLoading(true);
-      setQuestions(nutritionQuestions);
-      try {
-        const choices = await db.getUserChoices(userId);
-        const map: Record<string, UserChoice> = {};
-        choices?.forEach((c: any) => { map[c.question_id] = c; });
-        setUserChoices(map);
-      } catch (err) {
-        console.warn('Could not load choices:', err);
-      }
+      // Use daily selection (3 questions) by default
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const daily = await getDailySelection(userId, dateStr, 3).catch(() => allQuestions.slice(0, 3));
+      setQuestions(daily.filter(Boolean));
+      const choices = await db.getUserChoices(userId).catch(() => []);
+      const map: Record<string, UserChoice> = {};
+      choices?.forEach((c: any) => { map[c.question_id] = c; });
+      setUserChoices(map);
     } finally {
       setInitialLoading(false);
     }
   };
 
-  const handleAnswer = async (choice: 'A' | 'B', reflection?: string) => {
+  // Ensure currentIndex is valid when questions array changes
+  useEffect(() => {
+    if (questions.length === 0) {
+      setCurrentIndex(0);
+      return;
+    }
+    if (currentIndex >= questions.length) {
+      setCurrentIndex(0);
+    }
+  }, [questions]);
+
+  const handleSubmitAnswer = async (choice: 'A' | 'B', reflection?: string) => {
     const q = questions[currentIndex];
-    setLoading(true);
     try {
-      const newChoice: UserChoice = {
-        id: `${userId}_${q.id}`,
-        userId,
-        questionId: q.id,
-        category: q.category,
-        choice,
-        reflection,
-        selectedArchetype: choice === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype,
-        timestamp: new Date(),
-      };
-      setUserChoices(prev => ({ ...prev, [q.id]: newChoice }));
-      try {
-        await db.saveChoice(userId, q.id, choice, reflection);
-      } catch (err) {
-        console.warn('Could not save to Supabase:', err);
-      }
-      if (currentIndex < questions.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        Alert.alert('Done!', `You completed all ${questions.length} nutrition questions.`);
-        setCurrentIndex(0);
-      }
-    } finally {
-      setLoading(false);
+      setUserChoices(prev => ({
+        ...prev,
+        [q.id]: {
+          id: `${userId}_${q.id}`, userId,
+          questionId: q.id, category: q.category, choice, reflection,
+          selectedArchetype: choice === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype,
+          timestamp: new Date(),
+        },
+      }));
+      await db.saveChoice(userId, q.id, choice, reflection, q.category, choice === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype);
+    } catch (error) {
+      console.warn('Failed to save choice:', error);
+      Alert.alert('Could not save answer', 'Check your Supabase connection and database policies, then try again.');
+    }
+  };
+
+  const handleContinue = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(i => i + 1);
+    } else {
+      Alert.alert('Complete!', `You finished all ${questions.length} questions.`);
+      setCurrentIndex(0);
     }
   };
 
   if (initialLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.secondary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
-
-  if (questions.length === 0) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>No questions available</Text>
-      </View>
-    );
-  }
-
-  const answeredCount = Object.keys(userChoices).length;
 
   return (
     <View style={styles.container}>
@@ -94,9 +89,7 @@ export const QuestionScreen: React.FC = () => {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={styles.logoIconOuter}>
-              <View style={styles.logoIconInner} />
-            </View>
+            <Text style={styles.headerIcon}>🌿</Text>
             <Text style={styles.headerTitle}>Longevity</Text>
           </View>
           <View style={styles.avatar}>
@@ -104,83 +97,57 @@ export const QuestionScreen: React.FC = () => {
           </View>
         </View>
       </SafeAreaView>
-      <QuestionCard
-        question={questions[currentIndex]}
-        onChoice={handleAnswer}
-        answeredCount={answeredCount}
-        totalQuestions={questions.length}
-        loading={loading}
-      />
+
+      {questions[currentIndex] ? (
+        <QuestionCard
+          question={questions[currentIndex]}
+          onSubmitAnswer={handleSubmitAnswer}
+          onContinue={handleContinue}
+          answeredCount={Object.keys(userChoices).length}
+          totalQuestions={questions.length}
+          loading={false}
+        />
+      ) : (
+        <View style={styles.center}>
+          <Text style={{ color: colors.textMuted }}>No questions available for today.</Text>
+        </View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  safeArea: {
-    backgroundColor: colors.background,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  safeArea: { backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoIconOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  logoIconInner: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.secondary,
-  },
-  headerTitle: {
-    fontFamily: fonts.serif,
-    fontSize: 17,
-    fontStyle: 'italic',
-    color: colors.textPrimary,
-  },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.backgroundAlt,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: colors.secondary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderBottomColor: colors.outlineVariant + '4D',
     backgroundColor: colors.background,
   },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 16,
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerIcon: { fontSize: 20 },
+  headerTitle: {
+    fontFamily: fonts.serif,
+    fontSize: 28,
+    fontStyle: 'italic',
+    fontWeight: '700',
+    color: colors.primary,
   },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceContainerHighest,
+    borderWidth: 2,
+    borderColor: colors.outlineVariant,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: { color: colors.textSecondary, fontSize: 15, fontWeight: '700' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
 });

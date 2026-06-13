@@ -42,6 +42,7 @@ export interface UserProfile {
   createdAt: Date;
   onboardingCompleted: boolean;
   primaryArchetype?: ArchetypeType;
+  riskTolerance?: 'low' | 'medium' | 'high';
   archetypeScores?: Record<ArchetypeType, number>;
   totalChoicesMade: number;
   longevityScore?: number;

@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { colors, fonts } from '../theme';
 import { useUser } from '../context/UserContext';
 import { ArchetypeType } from '../types/index';
+import onboarding, { scoreArchetype, computeRiskLevel, archetypeQuestions, riskQuestions } from '../utils/onboarding';
 
 type Step = 'welcome' | 'name' | 'interests' | 'archetype';
 
@@ -42,6 +43,11 @@ export const OnboardingScreen: React.FC = () => {
   const [interests, setInterests] = useState<string[]>([]);
   const [archetype, setArchetype] = useState<ArchetypeType | ''>('');
   const [saving, setSaving] = useState(false);
+  const [quizPhase, setQuizPhase] = useState<'arche' | 'risk'>('arche');
+  const [archeIndex, setArcheIndex] = useState(0);
+  const [riskIndex, setRiskIndex] = useState(0);
+  const [archeAnswers, setArcheAnswers] = useState<( 'A' | 'B' | null )[]>([null, null, null]);
+  const [riskAnswers, setRiskAnswers] = useState<( 'A' | 'B' | null )[]>([null, null, null]);
 
   const toggleInterest = (item: string) => {
     setInterests(prev =>
@@ -52,9 +58,14 @@ export const OnboardingScreen: React.FC = () => {
   const completeOnboarding = async () => {
     if (saving) return;
     setSaving(true);
+    // If user manually selected archetype (fallback), use it, otherwise compute from quiz
+    const primary = archetype || (archeAnswers.every(a => a) ? scoreArchetype(archeAnswers as ('A'|'B')[]) : undefined);
+    const risk = (riskAnswers.every(a => a) ? computeRiskLevel(riskAnswers as ('A'|'B')[]) : undefined);
+
     await updateProfile({
       name: name.trim(),
-      primaryArchetype: archetype as ArchetypeType,
+      primaryArchetype: primary as ArchetypeType,
+      riskTolerance: risk,
       onboardingCompleted: true,
     });
   };
@@ -144,48 +155,73 @@ export const OnboardingScreen: React.FC = () => {
       </SafeAreaView>
     );
   }
+  // Archetype + risk quiz step
+  if (step === 'archetype') {
+    const archeQuestion = archetypeQuestions[archeIndex];
+    const riskQuestion = riskQuestions[riskIndex];
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={styles.stepWrapper}
-        showsVerticalScrollIndicator={false}
-      >
-        <Logo />
-        <Text style={styles.stepLabel}>STEP 3 OF 3</Text>
-        <Text style={styles.stepTitle}>How do you approach health?</Text>
-        <Text style={styles.stepSub}>This shapes your longevity archetype.</Text>
-        <View style={styles.archetypeList}>
-          {ARCHETYPES.map(a => (
-            <TouchableOpacity
-              key={a.id}
-              style={[styles.archetypeCard, archetype === a.id && styles.archetypeCardActive]}
-              onPress={() => setArchetype(a.id)}
-            >
-              <Text style={styles.archetypeEmoji}>{a.emoji}</Text>
-              <View style={styles.archetypeInfo}>
-                <Text style={[styles.archetypeLabel, archetype === a.id && styles.archetypeLabelActive]}>
-                  {a.label}
-                </Text>
-                <Text style={styles.archetypeDesc}>{a.desc}</Text>
-              </View>
-              {archetype === a.id && <Text style={styles.check}>✓</Text>}
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TouchableOpacity
-          style={[styles.primaryBtn, (!archetype || saving) && styles.primaryBtnDisabled]}
-          onPress={completeOnboarding}
-          disabled={!archetype || saving}
-        >
-          <Text style={[styles.primaryBtnText, (!archetype || saving) && styles.primaryBtnTextDisabled]}>
-            {saving ? 'Setting up…' : 'Enter the practice'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
+        <ScrollView contentContainerStyle={styles.stepWrapper} showsVerticalScrollIndicator={false}>
+          <Logo />
+          <Text style={styles.stepLabel}>STEP 3 OF 3</Text>
+          <Text style={styles.stepTitle}>Quick quiz</Text>
+          <Text style={styles.stepSub}>Three short questions to learn how you approach health, then three about risk tolerance.</Text>
+
+          {quizPhase === 'arche' ? (
+            <View>
+              <Text style={styles.quizQuestion}>{archeQuestion}</Text>
+              <TouchableOpacity style={styles.quizOpt} onPress={() => {
+                const copy = [...archeAnswers]; copy[archeIndex] = 'A'; setArcheAnswers(copy);
+                if (archeIndex < 2) setArcheIndex(i => i + 1); else setQuizPhase('risk');
+              }}>
+                <Text style={styles.quizOptText}>{onboarding.archetypeOptions[archeIndex][0]}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quizOpt} onPress={() => {
+                const copy = [...archeAnswers]; copy[archeIndex] = 'B'; setArcheAnswers(copy);
+                if (archeIndex < 2) setArcheIndex(i => i + 1); else setQuizPhase('risk');
+              }}>
+                <Text style={styles.quizOptText}>{onboarding.archetypeOptions[archeIndex][1]}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View>
+              <Text style={styles.quizQuestion}>{riskQuestion}</Text>
+              <TouchableOpacity style={styles.quizOpt} onPress={() => {
+                const copy = [...riskAnswers]; copy[riskIndex] = 'A'; setRiskAnswers(copy);
+                if (riskIndex < 2) setRiskIndex(i => i + 1); else {
+                  // finish
+                  setSaving(true);
+                  const primary = scoreArchetype(archeAnswers as ('A'|'B')[]);
+                  const risk = computeRiskLevel(riskAnswers as ('A'|'B')[]);
+                  updateProfile({ name: name.trim(), primaryArchetype: primary, riskTolerance: risk, onboardingCompleted: true })
+                    .catch(() => {})
+                    .finally(() => setSaving(false));
+                }
+              }}>
+                <Text style={styles.quizOptText}>{onboarding.riskOptions[riskIndex][0]}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quizOpt} onPress={() => {
+                const copy = [...riskAnswers]; copy[riskIndex] = 'B'; setRiskAnswers(copy);
+                if (riskIndex < 2) setRiskIndex(i => i + 1); else {
+                  setSaving(true);
+                  const primary = scoreArchetype(archeAnswers as ('A'|'B')[]);
+                  const risk = computeRiskLevel(riskAnswers as ('A'|'B')[]);
+                  updateProfile({ name: name.trim(), primaryArchetype: primary, riskTolerance: risk, onboardingCompleted: true })
+                    .catch(() => {})
+                    .finally(() => setSaving(false));
+                }
+              }}>
+                <Text style={styles.quizOptText}>{onboarding.riskOptions[riskIndex][1]}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 };
 
 const styles = StyleSheet.create({
@@ -218,7 +254,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.secondary,
     justifyContent: 'center',
-    alignItems: 'center',
+      borderWidth: 2,
     marginRight: 8,
   },
   logoIconInner: {
@@ -368,5 +404,22 @@ const styles = StyleSheet.create({
   },
   primaryBtnTextDisabled: {
     color: colors.textMuted,
+  },
+  quizQuestion: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  quizOpt: {
+    backgroundColor: colors.surfaceContainer,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  quizOptText: {
+    fontSize: 15,
+    color: colors.textPrimary,
   },
 });

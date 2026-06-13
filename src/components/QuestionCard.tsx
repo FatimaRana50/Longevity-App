@@ -1,41 +1,66 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView,
+  View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Question } from '../types/index';
 import { colors, fonts } from '../theme';
+import { db } from '../services/supabase';
 
 interface QuestionCardProps {
   question: Question;
-  onChoice: (choice: 'A' | 'B', reflection?: string) => void;
+  onSubmitAnswer: (choice: 'A' | 'B', reflection?: string) => Promise<void>;
+  onContinue: () => void;
   answeredCount?: number;
   totalQuestions?: number;
   loading?: boolean;
 }
 
+const archetypeIcon: Record<string, string> = {
+  'optimizer': '🔬',
+  'naturalist': '🌿',
+  'balanced-integrator': '⚖️',
+  'relationship-centered': '❤️',
+  'prevention-focused': '🛡️',
+};
+
 export const QuestionCard: React.FC<QuestionCardProps> = ({
-  question,
-  onChoice,
-  answeredCount = 0,
-  totalQuestions = 0,
-  loading = false,
+  question, onSubmitAnswer, onContinue, answeredCount = 0, totalQuestions = 0, loading = false,
 }) => {
   const [selected, setSelected] = useState<'A' | 'B' | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [reflection, setReflection] = useState('');
+  const [communityStats, setCommunityStats] = useState<{
+    total: number;
+    optionACount: number;
+    optionBCount: number;
+    optionAPercent: number;
+    optionBPercent: number;
+  } | null>(null);
+  const [communityLoading, setCommunityLoading] = useState(false);
 
   const insight = selected === 'A' ? question.optionA.insight : question.optionB.insight;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selected) return;
-    setSubmitted(true);
+    setCommunityLoading(true);
+    try {
+      await onSubmitAnswer(selected, reflection);
+      const stats = await db.getChoiceDistribution(question.id);
+      setCommunityStats(stats);
+      setSubmitted(true);
+    } catch {
+      setCommunityLoading(false);
+      return;
+    }
+    setCommunityLoading(false);
   };
 
   const handleContinue = () => {
-    onChoice(selected!, reflection);
+    onContinue();
     setSelected(null);
     setSubmitted(false);
     setReflection('');
+    setCommunityStats(null);
   };
 
   return (
@@ -46,41 +71,60 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       keyboardShouldPersistTaps="handled"
     >
       {/* Badge */}
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>Daily Quest</Text>
+      <View style={styles.badgeRow}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>Daily Quest</Text>
+        </View>
       </View>
 
-      {/* Heading */}
+      {/* Question heading */}
       <Text style={styles.questionTitle}>Would You Rather...</Text>
       <Text style={styles.questionSub}>A choice for the long-term self.</Text>
-
-      {/* Full question */}
       <Text style={styles.questionBody}>{question.question}</Text>
 
       {!submitted ? (
         <>
+          {/* Option A */}
           <TouchableOpacity
-            style={[styles.optionCard, selected === 'A' && styles.optionCardSelected]}
+            style={[styles.optionCard, selected === 'A' && styles.optionCardActive]}
             onPress={() => setSelected('A')}
             activeOpacity={0.85}
             disabled={loading}
           >
-            <Text style={[styles.optionTag, selected === 'A' && styles.optionTagSelected]}>OPTION A</Text>
-            <Text style={styles.optionText}>{question.optionA.text}</Text>
-            {selected === 'A' && <View style={styles.selectedPip} />}
+            <View style={styles.optionCardInner}>
+              <View style={styles.optionTextBlock}>
+                <Text style={styles.optionTag}>Option A</Text>
+                <Text style={styles.optionText}>{question.optionA.text}</Text>
+              </View>
+              <View style={[styles.iconCircle, selected === 'A' && styles.iconCircleActive]}>
+                <Text style={styles.iconEmoji}>
+                  {archetypeIcon[question.optionA.insight.archetype] ?? '🌿'}
+                </Text>
+              </View>
+            </View>
           </TouchableOpacity>
 
+          {/* Option B */}
           <TouchableOpacity
-            style={[styles.optionCard, selected === 'B' && styles.optionCardSelected]}
+            style={[styles.optionCard, selected === 'B' && styles.optionCardActive]}
             onPress={() => setSelected('B')}
             activeOpacity={0.85}
             disabled={loading}
           >
-            <Text style={[styles.optionTag, selected === 'B' && styles.optionTagSelected]}>OPTION B</Text>
-            <Text style={styles.optionText}>{question.optionB.text}</Text>
-            {selected === 'B' && <View style={styles.selectedPip} />}
+            <View style={styles.optionCardInner}>
+              <View style={styles.optionTextBlock}>
+                <Text style={styles.optionTag}>Option B</Text>
+                <Text style={styles.optionText}>{question.optionB.text}</Text>
+              </View>
+              <View style={[styles.iconCircle, selected === 'B' && styles.iconCircleActive]}>
+                <Text style={styles.iconEmoji}>
+                  {archetypeIcon[question.optionB.insight.archetype] ?? '🌿'}
+                </Text>
+              </View>
+            </View>
           </TouchableOpacity>
 
+          {/* Submit */}
           <TouchableOpacity
             style={[styles.submitBtn, !selected && styles.submitBtnInactive]}
             onPress={handleSubmit}
@@ -88,29 +132,66 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             activeOpacity={0.85}
           >
             <Text style={[styles.submitBtnText, !selected && styles.submitBtnTextInactive]}>
-              Submit Answer ✦
+              Submit Answer  🌱
             </Text>
           </TouchableOpacity>
+
+          {/* Quote */}
+          <Text style={styles.quote}>
+            "The secret of health for both mind and body is not to mourn for the past, worry about the future... but to live the present moment wisely and earnestly."
+          </Text>
         </>
       ) : (
         <>
           {/* Chosen recap */}
-          <View style={[styles.optionCard, styles.optionCardSelected]}>
-            <Text style={[styles.optionTag, styles.optionTagSelected]}>YOUR CHOICE</Text>
-            <Text style={styles.optionText}>
-              {selected === 'A' ? question.optionA.text : question.optionB.text}
-            </Text>
+          <View style={[styles.optionCard, styles.optionCardActive]}>
+            <View style={styles.optionCardInner}>
+              <View style={styles.optionTextBlock}>
+                <Text style={styles.optionTag}>Your Choice</Text>
+                <Text style={styles.optionText}>
+                  {selected === 'A' ? question.optionA.text : question.optionB.text}
+                </Text>
+              </View>
+              <View style={styles.iconCircleActive}>
+                <Text style={styles.iconEmoji}>{archetypeIcon[insight!.archetype] ?? '🌿'}</Text>
+              </View>
+            </View>
           </View>
 
           {/* Insight */}
           <View style={styles.insightCard}>
-            <Text style={styles.insightLabel}>✨  INSIGHT</Text>
+            <Text style={styles.insightLabel}>✨  Insight</Text>
             <Text style={styles.insightText}>{insight!.text}</Text>
+          </View>
+
+          {/* Community split */}
+          <View style={styles.communityCard}>
+            <Text style={styles.communityLabel}>Your community split</Text>
+            {communityLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : communityStats && communityStats.total > 0 ? (
+              <>
+                <View style={styles.splitRow}>
+                  <Text style={styles.splitText}>Option A</Text>
+                  <Text style={styles.splitValue}>{communityStats.optionAPercent}%</Text>
+                </View>
+                <View style={styles.splitBarTrack}>
+                  <View style={[styles.splitBarA, { width: `${communityStats.optionAPercent}%` }]} />
+                  <View style={[styles.splitBarB, { width: `${communityStats.optionBPercent}%` }]} />
+                </View>
+                <View style={styles.splitRowBottom}>
+                  <Text style={styles.splitMeta}>{communityStats.optionACount} chose A</Text>
+                  <Text style={styles.splitMeta}>{communityStats.optionBCount} chose B</Text>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.splitEmpty}>No community data yet. Be the first to set the pattern.</Text>
+            )}
           </View>
 
           {/* Science */}
           <View style={styles.scienceCard}>
-            <Text style={styles.scienceLabel}>🔬  SCIENCE SAYS</Text>
+            <Text style={styles.scienceLabel}>🔬  Science Says</Text>
             <Text style={styles.scienceText}>{insight!.scienceSays}</Text>
           </View>
 
@@ -134,7 +215,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             activeOpacity={0.85}
           >
             <Text style={styles.submitBtnText}>
-              {loading ? 'Saving…' : '→  Next Question'}
+              {loading ? 'Saving…' : 'Next Question  →'}
             </Text>
           </TouchableOpacity>
         </>
@@ -148,170 +229,228 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 24,
-    paddingTop: 20,
-    paddingBottom: 48,
-  },
+  scroll: { flex: 1, backgroundColor: colors.background },
+  content: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 56 },
+
+  badgeRow: { alignItems: 'center', marginBottom: 16 },
   badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 22,
+    backgroundColor: colors.secondaryContainer,
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
   badgeText: {
-    color: colors.secondary,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    color: colors.onSecondaryContainer,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
+
   questionTitle: {
     fontFamily: fonts.serif,
-    fontSize: 30,
+    fontSize: 28,
+    fontWeight: '600',
     color: colors.textPrimary,
+    textAlign: 'center',
     marginBottom: 6,
   },
   questionSub: {
     fontFamily: fonts.serif,
-    fontSize: 14,
+    fontSize: 16,
     fontStyle: 'italic',
-    color: colors.textMuted,
+    color: colors.textSecondary,
+    textAlign: 'center',
     marginBottom: 20,
+    opacity: 0.8,
   },
   questionBody: {
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 15,
+    color: colors.textMuted,
     lineHeight: 22,
+    textAlign: 'center',
     marginBottom: 28,
     fontStyle: 'italic',
   },
+
   optionCard: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: colors.borderLight,
-    position: 'relative',
-    shadowColor: '#2B3322',
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    marginBottom: 14,
+    shadowColor: '#55433b',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  optionCardSelected: {
-    borderColor: colors.secondary,
-    backgroundColor: colors.cardTinted,
+  optionCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.surfaceContainer,
   },
+  optionCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    gap: 14,
+  },
+  optionTextBlock: { flex: 1 },
   optionTag: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1.8,
-    color: colors.textMuted,
-    marginBottom: 8,
-  },
-  optionTagSelected: {
-    color: colors.secondary,
+    letterSpacing: 1.5,
+    color: colors.primary,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   optionText: {
-    fontSize: 16,
+    fontFamily: fonts.serif,
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.textPrimary,
-    fontWeight: '500',
-    lineHeight: 23,
+    lineHeight: 25,
   },
-  selectedPip: {
-    position: 'absolute',
-    top: 18,
-    right: 18,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.secondary,
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surfaceContainerHighest,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  iconCircleActive: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.outlineVariant,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconEmoji: { fontSize: 22 },
+
   submitBtn: {
-    backgroundColor: colors.secondary,
-    paddingVertical: 17,
-    borderRadius: 50,
+    backgroundColor: colors.primary,
+    paddingVertical: 18,
+    borderRadius: 999,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitBtnInactive: {
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.surfaceContainerHigh,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   submitBtnText: {
     color: colors.white,
-    fontSize: 16,
+    fontFamily: fonts.serif,
+    fontSize: 18,
     fontWeight: '600',
-    letterSpacing: 0.3,
   },
-  submitBtnTextInactive: {
-    color: colors.textMuted,
+  submitBtnTextInactive: { color: colors.textMuted },
+
+  quote: {
+    marginTop: 28,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    fontSize: 12,
+    color: colors.outline,
+    lineHeight: 18,
+    paddingHorizontal: 8,
   },
+
   insightCard: {
     backgroundColor: colors.cardTinted,
     borderLeftWidth: 3,
     borderLeftColor: colors.secondary,
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 14,
     marginBottom: 12,
   },
   insightLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     color: colors.secondary,
     marginBottom: 8,
   },
-  insightText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    lineHeight: 21,
-  },
+  insightText: { fontSize: 14, color: colors.textPrimary, lineHeight: 21 },
+
   scienceCard: {
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: colors.surfaceContainerHigh,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 14,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
   },
   scienceLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     color: colors.textMuted,
     marginBottom: 6,
   },
-  scienceText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 19,
+  scienceText: { fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
+
+  communityCard: {
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    marginBottom: 20,
   },
-  reflectionPrompt: {
-    fontSize: 13,
+  communityLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
     color: colors.textMuted,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  splitRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
+  splitText: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
+  splitValue: { fontSize: 18, fontWeight: '700', color: colors.primary },
+  splitBarTrack: {
+    flexDirection: 'row',
+    height: 10,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceContainerHighest,
+    marginBottom: 10,
+  },
+  splitBarA: { height: 10, backgroundColor: colors.primary },
+  splitBarB: { height: 10, backgroundColor: colors.secondary },
+  splitRowBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  splitMeta: { fontSize: 12, color: colors.textMuted },
+  splitEmpty: { fontSize: 13, color: colors.textMuted, lineHeight: 19 },
+
+  reflectionPrompt: { fontSize: 13, color: colors.textMuted, marginBottom: 8 },
   reflectionInput: {
-    backgroundColor: colors.card,
-    borderRadius: 10,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: 14,
     padding: 14,
     fontSize: 14,
     color: colors.textPrimary,
     minHeight: 80,
     textAlignVertical: 'top',
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.outlineVariant,
     marginBottom: 20,
   },
+
   progress: {
     textAlign: 'center',
     color: colors.textMuted,

@@ -3,24 +3,45 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserProvider, useUser } from './context/UserContext';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { QuestionScreen } from './screens/QuestionScreen';
+import { ExploreScreen, ExploreStackParamList } from './screens/ExploreScreen';
+import { CategoryQuestionsScreen } from './screens/CategoryQuestionsScreen';
+import { JournalScreen } from './screens/JournalScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { colors, fonts } from './theme';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+type RootStackParamList = {
+  Onboarding: undefined;
+  Main: undefined;
+};
 
-function PlaceholderScreen({ title }: { title: string }) {
+const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator();
+const ExploreStack = createNativeStackNavigator<ExploreStackParamList>();
+
+function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
   return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderTitle}>{title}</Text>
-      <Text style={styles.placeholderSub}>Coming Soon</Text>
-    </View>
+    <Text style={{ fontSize: focused ? 22 : 19, opacity: focused ? 1 : 0.5 }}>
+      {emoji}
+    </Text>
+  );
+}
+
+function ExploreStackNavigator() {
+  return (
+    <ExploreStack.Navigator screenOptions={{ headerShown: false }}>
+      <ExploreStack.Screen name="ExploreHome" component={ExploreScreen} />
+      <ExploreStack.Screen name="CategoryQuestions" component={CategoryQuestionsScreen} />
+    </ExploreStack.Navigator>
   );
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -28,8 +49,12 @@ function MainTabs() {
         tabBarActiveTintColor: colors.secondary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: colors.background,
-          borderTopColor: colors.borderLight,
+          backgroundColor: colors.surfaceContainer,
+          borderTopColor: colors.outlineVariant + '60',
+          borderTopWidth: 1,
+          height: 62 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
+          paddingTop: 5,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -40,22 +65,34 @@ function MainTabs() {
       <Tab.Screen
         name="TodayTab"
         component={QuestionScreen}
-        options={{ title: 'Daily Quest' }}
+        options={{
+          title: 'Daily Quest',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🌿" focused={focused} />,
+        }}
       />
       <Tab.Screen
         name="LibraryTab"
-        component={() => <PlaceholderScreen title="Library" />}
-        options={{ title: 'Library' }}
+        component={ExploreStackNavigator}
+        options={{
+          title: 'Explore',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} />,
+        }}
       />
       <Tab.Screen
         name="JournalTab"
-        component={() => <PlaceholderScreen title="Journal" />}
-        options={{ title: 'Journal' }}
+        component={JournalScreen}
+        options={{
+          title: 'Journal',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="✍️" focused={focused} />,
+        }}
       />
       <Tab.Screen
         name="ProfileTab"
-        component={() => <PlaceholderScreen title="Profile" />}
-        options={{ title: 'Profile' }}
+        component={ProfileScreen}
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+        }}
       />
     </Tab.Navigator>
   );
@@ -67,7 +104,8 @@ function RootNavigator() {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={colors.secondary} />
+        <Text style={styles.loadingLogo}>🌿 Longevity</Text>
+        <ActivityIndicator size="large" color={colors.secondary} style={{ marginTop: 24 }} />
       </View>
     );
   }
@@ -85,11 +123,13 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <UserProvider>
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
-    </UserProvider>
+    <SafeAreaProvider>
+      <UserProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </UserProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -100,20 +140,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  placeholderTitle: {
+  loadingLogo: {
     fontFamily: fonts.serif,
-    fontSize: 24,
-    color: colors.textPrimary,
-  },
-  placeholderSub: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 8,
+    fontSize: 28,
+    fontStyle: 'italic',
+    fontWeight: '700',
+    color: colors.primary,
   },
 });
