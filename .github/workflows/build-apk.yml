@@ -25,25 +25,40 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Setup Expo
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Prebuild Android
+        run: npx expo prebuild --clean --platform android --non-interactive
 
       - name: Build APK
-        run: eas build --platform android --profile preview --non-interactive
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Find APK file
+        id: find_apk
+        run: |
+          APK_PATH=$(find . -name "*.apk" -type f | grep -i release | head -1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK_PATH"
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: longevity-app-apk
-          path: |
-            **/*.apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
           retention-days: 30
 
       - name: Build Summary
@@ -51,16 +66,13 @@ jobs:
         run: |
           echo "✅ APK build completed successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download the APK from the Artifacts section" >> $GITHUB_STEP_SUMMARY
+          echo "**APK File:** ${{ steps.find_apk.outputs.apk_path }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download from the Artifacts section" >> $GITHUB_STEP_SUMMARY
 
-      - name: Notify on failure
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '❌ APK build failed. Check the workflow logs for details.'
-            })
+      - name: Build failed notification
+        if: failure()
+        run: |
+          echo "❌ APK build failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the workflow logs for details" >> $GITHUB_STEP_SUMMARY
