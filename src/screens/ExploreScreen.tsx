@@ -117,7 +117,19 @@ export const ExploreScreen: React.FC = () => {
         renderItem={renderCategory}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<RecommendationCard choices={choices} archetype={user?.primaryArchetype} />}
+        ListHeaderComponent={
+          <RecommendationCard
+            choices={choices}
+            archetype={user?.primaryArchetype}
+            onCategorySelect={(catId, catLabel, catIcon) =>
+              navigation.navigate('CategoryQuestions', {
+                categoryId: catId,
+                categoryLabel: catLabel,
+                categoryIcon: catIcon,
+              })
+            }
+          />
+        }
       />
     </View>
   );

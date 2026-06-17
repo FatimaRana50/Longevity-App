@@ -1,18 +1,16 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
-import { useNavigation, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { UserChoice } from '../types/index';
 import { colors, fonts } from '../theme';
 import { getRecommendations, getRecommendationMessage } from '../utils/recommendations';
-import { ExploreStackParamList } from '../screens/ExploreScreen';
 
 interface Props {
   choices: UserChoice[];
   archetype?: string;
+  onCategorySelect?: (categoryId: string, categoryLabel: string, categoryIcon: string) => void;
 }
 
-export const RecommendationCard: React.FC<Props> = ({ choices, archetype }) => {
-  const navigation = useNavigation<NativeStackNavigationProp<ExploreStackParamList>>();
+export const RecommendationCard: React.FC<Props> = ({ choices, archetype, onCategorySelect }) => {
   const recommendations = useMemo(() => getRecommendations(choices), [choices]);
 
   if (recommendations.length === 0) {
@@ -34,13 +32,9 @@ export const RecommendationCard: React.FC<Props> = ({ choices, archetype }) => {
         key={item.categoryId}
         style={[styles.recCard, index === 0 && styles.recCardFeatured]}
         activeOpacity={0.85}
-        onPress={() =>
-          navigation.navigate('CategoryQuestions', {
-            categoryId: item.categoryId,
-            categoryLabel: item.categoryLabel,
-            categoryIcon: item.categoryIcon,
-          })
-        }
+        onPress={() => {
+          onCategorySelect?.(item.categoryId, item.categoryLabel, item.categoryIcon);
+        }}
       >
         <View style={styles.recHeader}>
           <Text style={styles.recIcon}>{item.categoryIcon}</Text>

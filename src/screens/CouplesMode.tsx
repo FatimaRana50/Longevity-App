@@ -11,6 +11,7 @@ export const CouplesMode: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [partnered, setPartnered] = useState(false);
   const [compatibility, setCompatibility] = useState(0);
+  const [partnerName] = useState('Partner');
 
   const handleInvitePartner = async () => {
     if (!partnerId.trim()) {
