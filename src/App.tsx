@@ -1,10 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserProvider, useUser } from './context/UserContext';
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('App Error:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>⚠️ Something went wrong</Text>
+          <Text style={styles.errorText}>The app encountered an error. Please restart.</Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { QuestionScreen } from './screens/QuestionScreen';
 import { ExploreScreen, ExploreStackParamList } from './screens/ExploreScreen';
@@ -141,13 +170,15 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <UserProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
-      </UserProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <UserProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </UserProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -164,5 +195,25 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontWeight: '700',
     color: colors.primary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 20,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

@@ -30,16 +30,37 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Load from AsyncStorage first (instant, works offline)
       const cached = await AsyncStorage.getItem(STORAGE_KEY);
       if (cached) {
-        const parsed = JSON.parse(cached);
-        setUser({ ...parsed, createdAt: new Date(parsed.createdAt) });
-        setIsLoading(false);
-        // Sync from Supabase in background
-        syncFromSupabase();
+        try {
+          const parsed = JSON.parse(cached);
+          setUser({ ...parsed, createdAt: new Date(parsed.createdAt) });
+          setIsLoading(false);
+          // Sync from Supabase in background
+          syncFromSupabase().catch(err => console.warn('Background sync error:', err));
+        } catch (parseErr) {
+          console.warn('Cache parse error:', parseErr);
+          setIsLoading(false);
+          const fallback: UserProfile = {
+            id: TEST_USER_ID, email: '', name: '',
+            createdAt: new Date(), onboardingCompleted: false, totalChoicesMade: 0,
+          };
+          setUser(fallback);
+        }
         return;
       }
 
-      // No cache — try Supabase
-      await syncFromSupabase();
+      // No cache — try Supabase with timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase connection timeout')), 5000)
+      );
+
+      await Promise.race([syncFromSupabase(), timeoutPromise]).catch(err => {
+        console.warn('Supabase init error, using offline mode:', err);
+        const fallback: UserProfile = {
+          id: TEST_USER_ID, email: '', name: '',
+          createdAt: new Date(), onboardingCompleted: false, totalChoicesMade: 0,
+        };
+        setUser(fallback);
+      });
     } catch (err) {
       console.warn('Init error, using defaults:', err);
       const fallback: UserProfile = {
