@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -12,7 +12,6 @@ import { db } from '../services/supabase';
 import { useUser } from '../context/UserContext';
 import { colors, fonts } from '../theme';
 import { ExploreStackParamList } from './ExploreScreen';
-import { Alert } from 'react-native';
 
 type CategoryRoute = RouteProp<ExploreStackParamList, 'CategoryQuestions'>;
 
@@ -52,7 +51,6 @@ export const CategoryQuestionsScreen: React.FC = () => {
       });
       setUserChoices(map);
 
-      // Find first unanswered question
       const firstUnanswered = questions.findIndex(q => !map[q.id]);
       if (firstUnanswered === -1 && questions.length > 0) {
         setFinished(true);
@@ -88,7 +86,7 @@ export const CategoryQuestionsScreen: React.FC = () => {
       }
     } catch (error) {
       console.warn('Failed to save category choice:', error);
-      Alert.alert('Could not save answer', 'Check your Supabase connection and database policies, then try again.');
+      Alert.alert('Could not save answer', 'Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -118,7 +116,7 @@ export const CategoryQuestionsScreen: React.FC = () => {
         </SafeAreaView>
         <View style={styles.finishedWrap}>
           <Text style={styles.finishedEmoji}>🎉</Text>
-          <Text style={styles.finishedTitle}>Category Complete!</Text>
+          <Text style={styles.finishedTitle}>Category Complete</Text>
           <Text style={styles.finishedSub}>
             You answered all {answeredCount} questions in {categoryLabel}
           </Text>
@@ -147,7 +145,9 @@ export const CategoryQuestionsScreen: React.FC = () => {
             <Text style={styles.backArrow}>‹</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{categoryIcon} {categoryLabel}</Text>
-          <Text style={styles.headerProgress}>{answeredInCategory}/{questions.length}</Text>
+          <View style={styles.progressPill}>
+            <Text style={styles.progressPillText}>{answeredInCategory}/{questions.length}</Text>
+          </View>
         </View>
       </SafeAreaView>
 
@@ -176,10 +176,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant + '4D',
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.outlineVariant,
     backgroundColor: colors.background,
   },
   backBtn: {
@@ -192,17 +192,24 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: fonts.serif,
     fontSize: 18,
+    fontStyle: 'italic',
     fontWeight: '600',
     color: colors.textPrimary,
     flex: 1,
     textAlign: 'center',
   },
-  headerProgress: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-    minWidth: 36,
-    textAlign: 'right',
+  progressPill: {
+    backgroundColor: colors.secondaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    minWidth: 44,
+    alignItems: 'center',
+  },
+  progressPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.secondary,
   },
   finishedWrap: {
     flex: 1,
@@ -210,13 +217,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  finishedEmoji: { fontSize: 56, marginBottom: 16 },
+  finishedEmoji: { fontSize: 56, marginBottom: 20 },
   finishedTitle: {
     fontFamily: fonts.serif,
-    fontSize: 24,
+    fontSize: 26,
+    fontStyle: 'italic',
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   finishedSub: {
     fontSize: 15,
@@ -228,11 +236,11 @@ const styles = StyleSheet.create({
   restartBtn: {
     backgroundColor: colors.secondary,
     paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingVertical: 14,
+    borderRadius: 999,
     marginBottom: 12,
   },
-  restartBtnText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  restartBtnText: { color: colors.textLight, fontSize: 15, fontWeight: '700' },
   backToExplore: {
     paddingHorizontal: 28,
     paddingVertical: 12,

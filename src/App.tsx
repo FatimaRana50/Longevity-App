@@ -11,6 +11,8 @@ import { ExploreScreen, ExploreStackParamList } from './screens/ExploreScreen';
 import { CategoryQuestionsScreen } from './screens/CategoryQuestionsScreen';
 import { JournalScreen } from './screens/JournalScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { SocialShareScreen } from './screens/SocialShareScreen';
+import { CouplesMode } from './screens/CouplesMode';
 import { colors, fonts } from './theme';
 
 type RootStackParamList = {
@@ -92,6 +94,22 @@ function MainTabs() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="ShareTab"
+        component={SocialShareScreen}
+        options={{
+          title: 'Share',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🔗" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="CouplesTab"
+        component={CouplesMode}
+        options={{
+          title: 'Couples',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="💑" focused={focused} />,
         }}
       />
     </Tab.Navigator>

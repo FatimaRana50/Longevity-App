@@ -11,6 +11,7 @@ import { db } from '../services/supabase';
 import { useUser } from '../context/UserContext';
 import { colors, fonts } from '../theme';
 import { getLatestUniqueChoices, normalizeUserChoice } from '../utils/longevity';
+import { RecommendationCard } from '../components/RecommendationCard';
 
 export type ExploreStackParamList = {
   ExploreHome: undefined;
@@ -21,6 +22,7 @@ export const ExploreScreen: React.FC = () => {
   const { user } = useUser();
   const navigation = useNavigation<NativeStackNavigationProp<ExploreStackParamList>>();
   const [answeredByCategory, setAnsweredByCategory] = useState<Record<string, number>>({});
+  const [choices, setChoices] = useState<any[]>([]);
 
   useEffect(() => {
     loadProgress();
@@ -35,15 +37,16 @@ export const ExploreScreen: React.FC = () => {
   const loadProgress = async () => {
     try {
       const userId = user?.id ?? '00000000-0000-0000-0000-000000000001';
-      const choices = await db.getUserChoices(userId).catch(() => []);
+      const userChoices = await db.getUserChoices(userId).catch(() => []);
+      setChoices(userChoices ?? []);
       const counts: Record<string, number> = {};
-      getLatestUniqueChoices((choices ?? []).map(normalizeUserChoice)).forEach(c => {
+      getLatestUniqueChoices((userChoices ?? []).map(normalizeUserChoice)).forEach(c => {
         const cat = c.category || '';
         counts[cat] = (counts[cat] || 0) + 1;
       });
       setAnsweredByCategory(counts);
     } catch {
-      // silent — progress is optional
+      // silent
     }
   };
 
@@ -114,6 +117,7 @@ export const ExploreScreen: React.FC = () => {
         renderItem={renderCategory}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={<RecommendationCard choices={choices} archetype={user?.primaryArchetype} />}
       />
     </View>
   );
@@ -123,11 +127,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   safe: { backgroundColor: colors.background },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 12,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant + '4D',
+    borderBottomColor: colors.outlineVariant,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   headerTitle: {
     fontFamily: fonts.serif,
@@ -135,113 +144,144 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontWeight: '700',
     color: colors.primary,
+    letterSpacing: -0.3,
   },
   headerSub: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 6,
+    fontWeight: '500',
   },
   overallCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: 12,
-    padding: 14,
+    marginHorizontal: 24,
+    marginTop: 20,
+    marginBottom: 8,
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
     borderWidth: 1,
-    borderColor: colors.outlineVariant + '40',
+    borderColor: colors.outlineVariant,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   overallRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 14,
   },
-  overallLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  overallCount: { fontSize: 13, fontWeight: '600', color: colors.secondary },
+  overallLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.3, textTransform: 'uppercase' },
+  overallCount: { fontSize: 14, fontWeight: '700', color: colors.secondary },
   overallTrack: {
-    height: 6,
-    backgroundColor: colors.surfaceContainerHighest,
-    borderRadius: 3,
+    height: 8,
+    backgroundColor: colors.outlineVariant,
+    borderRadius: 4,
     overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   overallFill: {
-    height: 6,
+    height: 8,
     backgroundColor: colors.secondary,
-    borderRadius: 3,
+    borderRadius: 4,
   },
   list: {
-    paddingTop: 8,
-    paddingBottom: 24,
-    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
   },
   categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: 12,
-    marginBottom: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    marginBottom: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
     borderWidth: 1,
-    borderColor: colors.outlineVariant + '50',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderColor: colors.outlineVariant,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceContainer,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.secondaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  icon: { fontSize: 22 },
+  icon: { fontSize: 24 },
   rowContent: { flex: 1 },
-  rowTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  rowTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   categoryName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.textPrimary,
     flex: 1,
+    letterSpacing: -0.2,
   },
   doneBadge: {
-    backgroundColor: colors.secondaryContainer,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
+    backgroundColor: colors.secondary,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    shadowColor: colors.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  doneBadgeText: { fontSize: 11, fontWeight: '700', color: colors.onSecondaryContainer },
+  doneBadgeText: { fontSize: 11, fontWeight: '700', color: colors.white },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   progressTrack: {
     flex: 1,
-    height: 4,
-    backgroundColor: colors.surfaceContainerHighest,
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: colors.outlineVariant,
+    borderRadius: 3,
     overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   progressFill: {
-    height: 4,
+    height: 6,
     backgroundColor: colors.secondary,
-    borderRadius: 2,
+    borderRadius: 3,
   },
   progressCount: {
-    fontSize: 11,
-    color: colors.textMuted,
-    minWidth: 36,
+    fontSize: 12,
+    color: colors.textSecondary,
+    minWidth: 40,
     textAlign: 'right',
+    fontWeight: '700',
   },
   chevron: {
-    fontSize: 22,
-    color: colors.textMuted,
-    marginLeft: 8,
+    fontSize: 20,
+    color: colors.secondary,
+    marginLeft: 12,
+    fontWeight: '600',
   },
 });

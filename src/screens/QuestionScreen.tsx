@@ -23,7 +23,6 @@ export const QuestionScreen: React.FC = () => {
 
   const loadQuestions = async () => {
     try {
-      // Use daily selection (3 questions) by default
       const dateStr = new Date().toISOString().slice(0, 10);
       const daily = await getDailySelection(userId, dateStr, 3).catch(() => allQuestions.slice(0, 3));
       setQuestions(daily.filter(Boolean));
@@ -36,7 +35,6 @@ export const QuestionScreen: React.FC = () => {
     }
   };
 
-  // Ensure currentIndex is valid when questions array changes
   useEffect(() => {
     if (questions.length === 0) {
       setCurrentIndex(0);
@@ -62,7 +60,7 @@ export const QuestionScreen: React.FC = () => {
       await db.saveChoice(userId, q.id, choice, reflection, q.category, choice === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype);
     } catch (error) {
       console.warn('Failed to save choice:', error);
-      Alert.alert('Could not save answer', 'Check your Supabase connection and database policies, then try again.');
+      Alert.alert('Could not save answer', 'Check your connection and try again.');
     }
   };
 
@@ -123,31 +121,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant + '4D',
+    borderBottomColor: colors.outlineVariant,
     backgroundColor: colors.background,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerIcon: { fontSize: 20 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerIcon: { fontSize: 22 },
   headerTitle: {
     fontFamily: fonts.serif,
-    fontSize: 28,
+    fontSize: 26,
     fontStyle: 'italic',
     fontWeight: '700',
     color: colors.primary,
+    letterSpacing: -0.3,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceContainerHighest,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.secondary,
     borderWidth: 2,
     borderColor: colors.outlineVariant,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: colors.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  avatarText: { color: colors.textSecondary, fontSize: 15, fontWeight: '700' },
+  avatarText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
 });
