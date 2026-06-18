@@ -2,29 +2,47 @@ import { ArchetypeType } from '../types/index';
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 
-export const archetypeQuestions = [
-  'You prefer health choices that are:',
-  'To stay healthy you rely mostly on:',
-  'When choosing daily habits you value:',
-] as const;
+type Question = {
+  question: string;
+  optionA: string;
+  optionB: string;
+};
 
-export const archetypeOptions = [
-  ['A) data-driven, measured, and optimized', 'B) natural, traditional, and whole‑food based'],
-  ['A) screenings, tests, and prevention', 'B) relationships, purpose, and social routines'],
-  ['A) efficiency and measurable gains', 'B) sustainability and long-term balance'],
-] as const;
+export const archetypeQuestions: Question[] = [
+  {
+    question: 'You prefer health choices that are:',
+    optionA: 'Data-driven, measured, and optimized',
+    optionB: 'Natural, traditional, and whole-food based',
+  },
+  {
+    question: 'To stay healthy you rely mostly on:',
+    optionA: 'Screenings, tests, and prevention',
+    optionB: 'Relationships, purpose, and social routines',
+  },
+  {
+    question: 'When choosing daily habits you value:',
+    optionA: 'Efficiency and measurable gains',
+    optionB: 'Sustainability and long-term balance',
+  },
+];
 
-export const riskQuestions = [
-  'If a new supplement promises big benefits with limited evidence, you:',
-  'For a fitness program with higher injury risk but faster gains, you:',
-  'When a preventive test is invasive but could catch early disease, you:',
-] as const;
-
-export const riskOptions = [
-  ['A) try it cautiously', 'B) wait for robust evidence'],
-  ['A) accept higher risk for faster improvement', 'B) prefer slower, safer progress'],
-  ['A) accept it', 'B) avoid unless clear benefit proven'],
-] as const;
+export const riskQuestions: Question[] = [
+  {
+    question: 'If a new supplement promises big benefits with limited evidence, you:',
+    optionA: 'Try it cautiously',
+    optionB: 'Wait for robust evidence',
+  },
+  {
+    question: 'For a fitness program with higher injury risk but faster gains, you:',
+    optionA: 'Accept higher risk for faster improvement',
+    optionB: 'Prefer slower, safer progress',
+  },
+  {
+    question: 'When a preventive test is invasive but could catch early disease, you:',
+    optionA: 'Accept it',
+    optionB: 'Avoid unless clear benefit proven',
+  },
+];
 
 // Map archetype answers (index -> A/B) into weight vectors
 export function scoreArchetype(answers: ('A' | 'B')[]): ArchetypeType {
@@ -58,9 +76,7 @@ export function computeRiskLevel(answers: ('A' | 'B')[]): RiskLevel {
 
 export default {
   archetypeQuestions,
-  archetypeOptions,
   riskQuestions,
-  riskOptions,
   scoreArchetype,
   computeRiskLevel,
 };
