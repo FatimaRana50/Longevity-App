@@ -1,64 +1,64 @@
 import React from 'react';
 import { View, Image, StyleSheet, ImageSourcePropType } from 'react-native';
+import { colors } from '../theme';
 
-type Props = {
-  children: React.ReactNode;
-  topLeft?: ImageSourcePropType;
-  topRight?: ImageSourcePropType;
-  cornerOpacity?: number;
-};
+const TL: ImageSourcePropType = require('../../assets/corner-top-left.png');
+const BR: ImageSourcePropType = require('../../assets/corner-bottom-right.png');
+const PLANT: ImageSourcePropType = require('../../assets/plant2.png');
+const SUNFLOWER: ImageSourcePropType = require('../../assets/sunflower.png');
 
-const CORNER_TL = require('../../assets/onboarding/corner-leaves-tl.png');
-const CORNER_TR = require('../../assets/onboarding/corner-leaf-tr.png');
+interface Props {
+  variant?: 'full' | 'subtle' | 'top' | 'bottom';
+  tint?: string;
+  showPlant?: boolean;
+}
 
-export const BotanicalBackdrop: React.FC<Props> = ({ children, topLeft, topRight, cornerOpacity = 1 }) => {
+/**
+ * Premium botanical backdrop. Place as first child of a screen container
+ * with absolute fill — content sits on top of it.
+ */
+export const BotanicalBackdrop: React.FC<Props> = ({ variant = 'subtle', tint = colors.cream, showPlant = true }) => {
+  const showTop = variant !== 'bottom';
+  const showBottom = variant !== 'top';
+  const opacity = variant === 'full' ? 0.35 : 0.18;
+
   return (
-    <View style={styles.container}>
-      {/* Top-left corner */}
-      {topLeft !== false && (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: tint }]}>
+      {showPlant && (
         <Image
-          source={topLeft || CORNER_TL}
-          style={[styles.cornerTL, { opacity: cornerOpacity }]}
+          source={PLANT}
+          style={styles.plant}
+          blurRadius={2}
+          resizeMode="cover"
+        />
+      )}
+      {showTop && (
+        <Image
+          source={TL}
+          style={[styles.tl, { opacity }]}
           resizeMode="contain"
         />
       )}
-
-      {/* Top-right corner */}
-      {topRight !== false && (
+      {showBottom && (
         <Image
-          source={topRight || CORNER_TR}
-          style={[styles.cornerTR, { opacity: cornerOpacity }]}
+          source={BR}
+          style={[styles.br, { opacity }]}
           resizeMode="contain"
         />
       )}
-
-      {/* Content */}
-      {children}
+      <Image
+        source={SUNFLOWER}
+        style={styles.sunflower}
+        blurRadius={2}
+        resizeMode="contain"
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FDF9F2',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  cornerTL: {
-    position: 'absolute',
-    top: -20,
-    left: -20,
-    width: 180,
-    height: 180,
-    zIndex: 1,
-  },
-  cornerTR: {
-    position: 'absolute',
-    top: -10,
-    right: -30,
-    width: 200,
-    height: 200,
-    zIndex: 1,
-  },
+  plant: { position: 'absolute', width: '100%', height: '60%', bottom: 0, opacity: 0.45 },
+  tl: { position: 'absolute', top: -40, left: -60, width: 280, height: 280 },
+  br: { position: 'absolute', bottom: -40, right: -60, width: 280, height: 280 },
+  sunflower: { position: 'absolute', top: '45%', right: -60, width: 320, height: 320, opacity: 0.35 },
 });

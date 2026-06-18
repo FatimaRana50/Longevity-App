@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { QuestionCard } from '../components/QuestionCard';
 import { Question, UserChoice } from '../types/index';
 import { db } from '../services/supabase';
 import { allQuestions } from '../data/all-questions';
 import { getDailySelection } from '../services/daily';
-import { colors, fonts } from '../theme';
 import { useUser } from '../context/UserContext';
+import { colors, fonts, radii, shadow } from '../theme';
+import { BotanicalBackdrop } from '../components/BotanicalBackdrop';
+import { Avatar } from '../components/Avatar';
+import { PremiumButton } from '../components/PremiumButton';
+import { ProgressBar } from '../components/ProgressBar';
 
+/**
+ * Daily Quest Screen — premium botanical redesign.
+ * Shows one question at a time from the day's selection.
+ */
 export const QuestionScreen: React.FC = () => {
   const { user } = useUser();
   const userId = user?.id ?? '00000000-0000-0000-0000-000000000001';
@@ -17,6 +27,9 @@ export const QuestionScreen: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userChoices, setUserChoices] = useState<Record<string, UserChoice>>({});
+  const [selected, setSelected] = useState<'A' | 'B' | null>(null);
+  const [reflection, setReflection] = useState('');
+  const [saving, setSaving] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => { loadQuestions(); }, []);
@@ -35,48 +48,50 @@ export const QuestionScreen: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (questions.length === 0) {
-      setCurrentIndex(0);
-      return;
-    }
-    if (currentIndex >= questions.length) {
-      setCurrentIndex(0);
-    }
-  }, [questions]);
+  const q = questions[currentIndex];
+  const answeredCount = questions.filter(qq => userChoices[qq.id]).length;
 
-  const handleSubmitAnswer = async (choice: 'A' | 'B', reflection?: string) => {
-    const q = questions[currentIndex];
+  const handleSubmit = async () => {
+    if (!q || !selected) return;
+    setSaving(true);
     try {
+      const archetype = selected === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype;
       setUserChoices(prev => ({
         ...prev,
         [q.id]: {
-          id: `${userId}_${q.id}`, userId,
-          questionId: q.id, category: q.category, choice, reflection,
-          selectedArchetype: choice === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype,
-          timestamp: new Date(),
+          id: `${userId}_${q.id}`, userId, questionId: q.id, category: q.category,
+          choice: selected, reflection, selectedArchetype: archetype, timestamp: new Date(),
         },
       }));
-      await db.saveChoice(userId, q.id, choice, reflection, q.category, choice === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype);
-    } catch (error) {
-      console.warn('Failed to save choice:', error);
-      Alert.alert('Could not save answer', 'Check your connection and try again.');
-    }
-  };
-
-  const handleContinue = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(i => i + 1);
-    } else {
-      Alert.alert('Complete!', `You finished all ${questions.length} questions.`);
-      setCurrentIndex(0);
+      await db.saveChoice(userId, q.id, selected, reflection, q.category, archetype);
+      // advance
+      setSelected(null);
+      setReflection('');
+      if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1);
+    } catch (e) {
+      Alert.alert('Could not save', 'Check your connection and try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
   if (initialLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        <BotanicalBackdrop variant="subtle" />
+        <SafeAreaView style={styles.center}><ActivityIndicator color={colors.terracotta} /></SafeAreaView>
+      </View>
+    );
+  }
+
+  if (!q) {
+    return (
+      <View style={styles.container}>
+        <BotanicalBackdrop variant="full" />
+        <SafeAreaView style={styles.center}>
+          <Text style={styles.emptyTitle}>You're complete for today</Text>
+          <Text style={styles.emptySub}>Return tomorrow for new reflections.</Text>
+        </SafeAreaView>
       </View>
     );
   }
@@ -84,79 +99,150 @@ export const QuestionScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.headerIcon}>🌿</Text>
-            <Text style={styles.headerTitle}>Longevity</Text>
+      <BotanicalBackdrop variant="subtle" />
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        {/* Brand header */}
+        <View style={styles.brandRow}>
+          <View>
+            <Text style={styles.eyebrow}>Today's Reflection</Text>
+            <Text style={styles.brand}>The Longevity Game</Text>
           </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.name?.[0]?.toUpperCase() ?? 'U'}</Text>
-          </View>
+          <Avatar name={user?.name ?? 'You'} />
         </View>
-      </SafeAreaView>
 
-      {questions[currentIndex] ? (
-        <QuestionCard
-          question={questions[currentIndex]}
-          onSubmitAnswer={handleSubmitAnswer}
-          onContinue={handleContinue}
-          answeredCount={Object.keys(userChoices).length}
-          totalQuestions={questions.length}
-          loading={false}
-        />
-      ) : (
-        <View style={styles.center}>
-          <Text style={{ color: colors.textMuted }}>No questions available for today.</Text>
+        {/* Progress */}
+        <View style={styles.progressRow}>
+          <Text style={styles.progressLabel}>
+            Question {currentIndex + 1} of {questions.length}
+          </Text>
+          <Text style={styles.progressMeta}>{answeredCount}/{questions.length} today</Text>
         </View>
-      )}
+        <View style={styles.progressBarWrap}>
+          <ProgressBar value={(currentIndex + 1) / Math.max(1, questions.length)} />
+        </View>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.categoryTag}>{q.category}</Text>
+            <Text style={styles.question}>{q.question}</Text>
+
+            <OptionCard
+              label="A"
+              text={q.optionA.text}
+              selected={selected === 'A'}
+              onPress={() => setSelected('A')}
+            />
+            <OptionCard
+              label="B"
+              text={q.optionB.text}
+              selected={selected === 'B'}
+              onPress={() => setSelected('B')}
+            />
+
+            <Text style={styles.reflectionLabel}>Add a reflection (optional)</Text>
+            <TextInput
+              style={styles.reflectionInput}
+              placeholder="What drew you to this choice?"
+              placeholderTextColor={colors.inkMuted}
+              value={reflection}
+              onChangeText={setReflection}
+              multiline
+              textAlignVertical="top"
+            />
+
+            <PremiumButton
+              label={currentIndex < questions.length - 1 ? 'Continue' : 'Complete Today'}
+              onPress={handleSubmit}
+              disabled={!selected}
+              loading={saving}
+              style={{ marginTop: 24 }}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 };
 
+const OptionCard: React.FC<{
+  label: 'A' | 'B'; text: string; selected: boolean; onPress: () => void;
+}> = ({ label, text, selected, onPress }) => (
+  <TouchableOpacity
+    activeOpacity={0.85}
+    onPress={onPress}
+    style={[styles.option, selected && styles.optionSelected]}
+  >
+    <View style={[styles.optionBadge, selected && styles.optionBadgeSelected]}>
+      <Text style={[styles.optionBadgeTxt, selected && { color: colors.cream }]}>{label}</Text>
+    </View>
+    <Text style={[styles.optionTxt, selected && { color: colors.ink }]}>{text}</Text>
+  </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  safeArea: { backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
-    backgroundColor: colors.background,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+  container: { flex: 1, backgroundColor: colors.cream },
+  safe: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  brandRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 24, paddingTop: 8, paddingBottom: 16,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerIcon: { fontSize: 22 },
-  headerTitle: {
-    fontFamily: fonts.serif,
-    fontSize: 26,
-    fontStyle: 'italic',
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: -0.3,
+  eyebrow: {
+    fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.5,
+    textTransform: 'uppercase', color: colors.terracotta, marginBottom: 2,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.secondary,
-    borderWidth: 2,
-    borderColor: colors.outlineVariant,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.secondary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
+  brand: { fontFamily: fonts.serif, fontSize: 18, color: colors.ink },
+  progressRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingHorizontal: 24, marginBottom: 8,
   },
-  avatarText: { color: colors.white, fontSize: 16, fontWeight: '700' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  progressLabel: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkSoft, letterSpacing: 0.5 },
+  progressMeta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkSoft },
+  progressBarWrap: { paddingHorizontal: 24, marginBottom: 24 },
+  scroll: { paddingHorizontal: 24, paddingBottom: 60 },
+  categoryTag: {
+    alignSelf: 'flex-start',
+    fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2,
+    textTransform: 'uppercase', color: colors.sage,
+    backgroundColor: colors.cardWarm,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    marginBottom: 18,
+  },
+  question: {
+    fontFamily: fonts.serif, fontSize: 28, lineHeight: 38,
+    color: colors.ink, marginBottom: 32, letterSpacing: -0.4,
+  },
+  option: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg, borderWidth: 1, borderColor: colors.hairline,
+    padding: 20, marginBottom: 14, flexDirection: 'row', alignItems: 'flex-start',
+    ...shadow.soft,
+  },
+  optionSelected: { borderColor: colors.terracotta, backgroundColor: colors.cardWarm },
+  optionBadge: {
+    width: 32, height: 32, borderRadius: 16,
+    borderWidth: 1.5, borderColor: colors.hairline,
+    alignItems: 'center', justifyContent: 'center', marginRight: 14,
+  },
+  optionBadgeSelected: { backgroundColor: colors.terracotta, borderColor: colors.terracotta },
+  optionBadgeTxt: { fontFamily: fonts.serif, fontSize: 14, color: colors.inkSoft },
+  optionTxt: { flex: 1, fontFamily: fonts.sans, fontSize: 16, lineHeight: 24, color: colors.inkSoft, paddingTop: 4 },
+  reflectionLabel: {
+    fontFamily: fonts.sans, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase',
+    color: colors.inkSoft, marginTop: 28, marginBottom: 10,
+  },
+  reflectionInput: {
+    minHeight: 96, padding: 16, borderRadius: radii.md,
+    borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.card,
+    fontFamily: fonts.sans, fontSize: 15, color: colors.ink, lineHeight: 22,
+  },
+  emptyTitle: { fontFamily: fonts.serif, fontSize: 26, color: colors.ink, textAlign: 'center' },
+  emptySub: { fontFamily: fonts.sans, fontSize: 15, color: colors.inkSoft, marginTop: 8, textAlign: 'center' },
 });

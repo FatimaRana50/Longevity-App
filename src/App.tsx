@@ -42,6 +42,7 @@ import { JournalScreen } from './screens/JournalScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { SocialShareScreen } from './screens/SocialShareScreen';
 import { CouplesMode } from './screens/CouplesMode';
+import { MoreScreen } from './screens/MoreScreen';
 import { colors, fonts } from './theme';
 
 type RootStackParamList = {
@@ -52,6 +53,7 @@ type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 const ExploreStack = createNativeStackNavigator<ExploreStackParamList>();
+const MoreStack = createNativeStackNavigator();
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
   return (
@@ -67,6 +69,16 @@ function ExploreStackNavigator() {
       <ExploreStack.Screen name="ExploreHome" component={ExploreScreen} />
       <ExploreStack.Screen name="CategoryQuestions" component={CategoryQuestionsScreen} />
     </ExploreStack.Navigator>
+  );
+}
+
+function MoreStackNavigator() {
+  return (
+    <MoreStack.Navigator screenOptions={{ headerShown: false }}>
+      <MoreStack.Screen name="MoreHome" component={MoreScreen} />
+      <MoreStack.Screen name="Share" component={SocialShareScreen} />
+      <MoreStack.Screen name="Couples" component={CouplesMode} />
+    </MoreStack.Navigator>
   );
 }
 
@@ -126,19 +138,11 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="ShareTab"
-        component={SocialShareScreen}
+        name="MoreTab"
+        component={MoreStackNavigator}
         options={{
-          title: 'Share',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🔗" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="CouplesTab"
-        component={CouplesMode}
-        options={{
-          title: 'Couples',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💑" focused={focused} />,
+          title: 'More',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="⋯" focused={focused} />,
         }}
       />
     </Tab.Navigator>

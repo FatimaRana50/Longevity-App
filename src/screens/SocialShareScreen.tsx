@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Image,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { colors, fonts } from '../theme';
+import { colors, fonts, radii, shadow } from '../theme';
 import { useUser } from '../context/UserContext';
 import { archetypeLabels } from '../utils/longevity';
+import { BotanicalBackdrop } from '../components/BotanicalBackdrop';
+import { Header } from '../components/Header';
+import { PremiumButton } from '../components/PremiumButton';
+
+const CORNER = require('../../assets/corner-top-left.png');
 
 export const SocialShareScreen: React.FC = () => {
   const { user } = useUser();
@@ -15,18 +22,15 @@ export const SocialShareScreen: React.FC = () => {
 
   const handleShare = async () => {
     if (!archetype || !label) return;
-
     setSharing(true);
     try {
-      const message = `I'm a "${label.label}" 🌿\n\nI just discovered my longevity archetype on The Longevity Game! What's yours?\n\n#longevity #wellness #healthspan`;
-
-      await Share.share({
-        message,
-        title: 'My Longevity Archetype',
-        url: 'https://longevity.game', // Will update with actual link
-      });
-    } catch (error) {
-      console.error('Share error:', error);
+      const message =
+        `I'm a "${label.label}".\n\n` +
+        `I just discovered my longevity archetype on The Longevity Game. What's yours?\n\n` +
+        `#longevity #wellness #healthspan`;
+      await Share.share({ message, title: 'My Longevity Archetype', url: 'https://longevity.game' });
+    } catch (e) {
+      console.error('Share error:', e);
     } finally {
       setSharing(false);
     }
@@ -35,8 +39,12 @@ export const SocialShareScreen: React.FC = () => {
   if (!archetype || !label) {
     return (
       <View style={styles.container}>
-        <SafeAreaView style={styles.safe}>
-          <Text style={styles.emptyText}>Complete questions to unlock sharing</Text>
+        <BotanicalBackdrop variant="full" />
+        <SafeAreaView style={styles.center}>
+          <Text style={styles.emptyTitle}>Almost there</Text>
+          <Text style={styles.emptySub}>
+            Answer more questions to discover your archetype and unlock sharing.
+          </Text>
         </SafeAreaView>
       </View>
     );
@@ -45,51 +53,47 @@ export const SocialShareScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
+      <BotanicalBackdrop variant="subtle" />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>Share Your Results</Text>
+        <Header title="Share Your Results" subtitle="An elegant card, ready to send" />
 
-          {/* Card Preview */}
-          <View style={styles.cardPreview}>
-            <View style={styles.cardContent}>
-              <Text style={styles.archetypeEmoji}>{label.emoji}</Text>
-              <Text style={styles.archetypeName}>{label.label}</Text>
-              <Text style={styles.tagline}>{label.description}</Text>
-
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Preview card */}
+          <View style={styles.card}>
+            <Image source={CORNER} style={styles.cardCornerTL} resizeMode="contain" />
+            <Image source={CORNER} style={styles.cardCornerBR} resizeMode="contain" />
+            <View style={styles.cardInner}>
+              <Text style={styles.eyebrow}>Longevity Archetype</Text>
+              <Text style={styles.archeName}>{label.label}</Text>
+              <View style={styles.divider} />
+              <Text style={styles.tagline}>Discover your path to longevity</Text>
               {user?.totalChoicesMade ? (
-                <Text style={styles.statText}>
-                  {user.totalChoicesMade} Choices Made
-                </Text>
+                <Text style={styles.stat}>{user.totalChoicesMade} choices made</Text>
               ) : null}
-
-              <Text style={styles.brandText}>The Longevity Game</Text>
+              <Text style={styles.brand}>The Longevity Game</Text>
             </View>
           </View>
 
-          {/* Share Buttons */}
-          <TouchableOpacity
-            style={styles.shareBtn}
+          <PremiumButton
+            label="Share My Archetype"
             onPress={handleShare}
-            disabled={sharing}
-            activeOpacity={0.85}
-          >
-            {sharing ? (
-              <ActivityIndicator color={colors.white} size="small" />
-            ) : (
-              <>
-                <Text style={styles.shareBtnEmoji}>📱</Text>
-                <Text style={styles.shareBtnText}>Share My Archetype</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            loading={sharing}
+            style={{ marginTop: 28 }}
+          />
 
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>Why Share?</Text>
-            <Text style={styles.infoText}>
-              • Challenge your friends to discover their archetype
-              • Compare results with your network
-              • Start conversations about longevity
-              • Inspire others on their wellness journey
+          <View style={styles.iconRow}>
+            {['M', 'X', '@'].map(l => (
+              <TouchableOpacity key={l} style={styles.iconBtn} onPress={handleShare}>
+                <Text style={styles.iconTxt}>{l}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.whyCard}>
+            <Text style={styles.whyTitle}>Why share?</Text>
+            <Text style={styles.whyTxt}>
+              Sharing your archetype invites friends and family into the conversation about
+              longevity — and helps you find others who see aging the way you do.
             </Text>
           </View>
         </ScrollView>
@@ -99,139 +103,45 @@ export const SocialShareScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.cream },
   safe: { flex: 1 },
-  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
-
-  title: {
-    fontFamily: fonts.serif,
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 24,
-    letterSpacing: -0.3,
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  scroll: { paddingHorizontal: 24, paddingBottom: 40 },
+  card: {
+    backgroundColor: colors.cardWarm, borderRadius: radii.xl,
+    borderWidth: 1, borderColor: colors.hairline,
+    overflow: 'hidden', aspectRatio: 1, ...shadow.card,
   },
-
-  cardPreview: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.secondary,
-    overflow: 'hidden',
-    marginBottom: 24,
-    shadowColor: colors.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+  cardCornerTL: {
+    position: 'absolute', top: -30, left: -40, width: 180, height: 180, opacity: 0.5,
   },
-
-  cardContent: {
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    backgroundColor: colors.white,
+  cardCornerBR: {
+    position: 'absolute', bottom: -30, right: -40, width: 180, height: 180,
+    opacity: 0.5, transform: [{ rotate: '180deg' }],
   },
-
-  archetypeEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
+  cardInner: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  eyebrow: {
+    fontFamily: fonts.sans, fontSize: 11, letterSpacing: 2,
+    textTransform: 'uppercase', color: colors.terracotta, marginBottom: 14,
   },
-
-  archetypeName: {
-    fontFamily: fonts.serif,
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 8,
-    letterSpacing: -0.3,
+  archeName: { fontFamily: fonts.serif, fontSize: 36, color: colors.ink, textAlign: 'center', letterSpacing: -0.5 },
+  divider: { width: 40, height: 1, backgroundColor: colors.terracotta, marginVertical: 18 },
+  tagline: { fontFamily: fonts.serif, fontStyle: 'italic', fontSize: 15, color: colors.inkSoft, textAlign: 'center', lineHeight: 22 },
+  stat: { fontFamily: fonts.sans, fontSize: 12, color: colors.sage, marginTop: 16, letterSpacing: 0.5 },
+  brand: { fontFamily: fonts.serif, fontSize: 13, color: colors.inkMuted, marginTop: 22, letterSpacing: 1.2 },
+  iconRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 18 },
+  iconBtn: {
+    width: 48, height: 48, borderRadius: 24, marginHorizontal: 8,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.hairline,
+    alignItems: 'center', justifyContent: 'center', ...shadow.soft,
   },
-
-  tagline: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 16,
-    fontWeight: '500',
+  iconTxt: { fontFamily: fonts.serif, fontSize: 18, color: colors.ink },
+  whyCard: {
+    marginTop: 28, padding: 20, borderRadius: radii.lg,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.hairlineSoft,
   },
-
-  statText: {
-    fontSize: 13,
-    color: colors.secondary,
-    fontWeight: '700',
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-
-  brandText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-
-  shareBtn: {
-    backgroundColor: colors.secondary,
-    borderRadius: 12,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-    shadowColor: colors.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-
-  shareBtnEmoji: {
-    fontSize: 20,
-  },
-
-  shareBtnText: {
-    color: colors.white,
-    fontFamily: fonts.serif,
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-
-  infoCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 12,
-  },
-
-  infoText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    fontWeight: '500',
-  },
-
-  emptyText: {
-    fontSize: 16,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 40,
-  },
+  whyTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.ink, marginBottom: 8 },
+  whyTxt: { fontFamily: fonts.sans, fontSize: 14, color: colors.inkSoft, lineHeight: 22 },
+  emptyTitle: { fontFamily: fonts.serif, fontSize: 26, color: colors.ink, textAlign: 'center' },
+  emptySub: { fontFamily: fonts.sans, fontSize: 14, color: colors.inkSoft, marginTop: 10, textAlign: 'center', lineHeight: 22 },
 });

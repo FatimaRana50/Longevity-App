@@ -6,18 +6,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../services/supabase';
 import { useUser } from '../context/UserContext';
 import { categoryMeta } from '../data/all-questions';
-import { colors, fonts } from '../theme';
-import { archetypeLabels, getArchetypeCounts, getChoiceSummaries, getPrimaryArchetype, getLatestUniqueChoices, normalizeUserChoice } from '../utils/longevity';
+import { colors, fonts, radii, shadow } from '../theme';
+import {
+  archetypeLabels, getArchetypeCounts, getChoiceSummaries, getPrimaryArchetype,
+  getLatestUniqueChoices, normalizeUserChoice,
+} from '../utils/longevity';
 import { UserChoice } from '../types/index';
-import { StreaksAndBadges } from '../components/StreaksAndBadges';
+import { BotanicalBackdrop } from '../components/BotanicalBackdrop';
+import { Header } from '../components/Header';
+import { Avatar } from '../components/Avatar';
+import { Card } from '../components/Card';
+import { ProgressBar } from '../components/ProgressBar';
 
-function Bar({ value }: { value: number }) {
-  return (
-    <View style={styles.barTrack}>
-      <View style={[styles.barFill, { width: `${Math.min(100, Math.max(0, value))}%` }]} />
-    </View>
-  );
-}
+const ARCH_COLORS = [colors.terracotta, colors.sage, '#C49B6C', '#8B7355', '#A35C4A'];
 
 export const ProfileScreen: React.FC = () => {
   const { user, resetOnboarding } = useUser();
@@ -28,345 +29,143 @@ export const ProfileScreen: React.FC = () => {
     try {
       const rows = await db.getUserChoices(userId).catch(() => []);
       setChoices(getLatestUniqueChoices((rows ?? []).map(normalizeUserChoice)));
-    } catch {
-      setChoices([]);
-    }
+    } catch { setChoices([]); }
   };
 
-  useEffect(() => {
-    loadProfileData();
-  }, [userId]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      loadProfileData();
-    }, [userId])
-  );
+  useEffect(() => { loadProfileData(); }, [userId]);
+  useFocusEffect(React.useCallback(() => { loadProfileData(); }, [userId]));
 
   const totalChoices = choices.length;
   const dimensionScores = useMemo(() => getChoiceSummaries(choices), [choices]);
   const archetypeCounts = useMemo(() => getArchetypeCounts(choices), [choices]);
   const dominantArchetype = user?.primaryArchetype ?? getPrimaryArchetype(choices);
+  const dominantLabel = dominantArchetype ? archetypeLabels[dominantArchetype] : null;
 
-  const leadingCategory = useMemo(() => {
-    return [...categoryMeta]
-      .map(category => ({
-        ...category,
-        score: dimensionScores[category.id]?.score ?? 0,
-      }))
-      .sort((a, b) => b.score - a.score)[0];
-  }, [dimensionScores]);
+  const totalArchetype = Object.values(archetypeCounts).reduce((a, b) => a + (b as number), 0) || 1;
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
+      <BotanicalBackdrop variant="subtle" />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <Text style={styles.headerSub}>Your longevity dimensions at a glance</Text>
-        </View>
-      </SafeAreaView>
+        <Header title="Profile" subtitle="Your longevity dimensions" />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroCard}>
-          <View style={styles.heroTop}>
-            <View>
-              <Text style={styles.heroLabel}>Current profile</Text>
-              <Text style={styles.heroName}>{user?.name?.trim() || 'Your profile'}</Text>
-            </View>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user?.name?.[0]?.toUpperCase() ?? 'U'}</Text>
-            </View>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{totalChoices}</Text>
-              <Text style={styles.statLabel}>choices saved</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{leadingCategory?.score ?? 0}%</Text>
-              <Text style={styles.statLabel}>top dimension</Text>
-            </View>
-          </View>
-
-          {dominantArchetype ? (
-            <View style={styles.archetypeCard}>
-              <Text style={styles.archetypeEmoji}>{archetypeLabels[dominantArchetype].emoji}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.archetypeLabel}>Primary archetype</Text>
-                <Text style={styles.archetypeValue}>{archetypeLabels[dominantArchetype].label}</Text>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Identity card */}
+          <Card>
+            <View style={styles.identityRow}>
+              <Avatar name={user?.name ?? 'You'} size={64} />
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                <Text style={styles.name}>{user?.name ?? 'You'}</Text>
+                <Text style={styles.totalTxt}>
+                  <Text style={styles.totalNum}>{totalChoices}</Text> choices made
+                </Text>
               </View>
             </View>
-          ) : null}
-        </View>
-
-        <StreaksAndBadges choices={choices} />
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Dimension scores</Text>
-          <Text style={styles.sectionSub}>Percent of each category you have explored</Text>
-        </View>
-
-        <View style={styles.dimensionCard}>
-          {categoryMeta.map(category => {
-            const summary = dimensionScores[category.id];
-            return (
-              <View key={category.id} style={styles.dimensionRow}>
-                <View style={styles.dimensionTopRow}>
-                  <Text style={styles.dimensionName}>{category.icon} {category.label}</Text>
-                  <Text style={styles.dimensionScore}>{summary.score}%</Text>
-                </View>
-                <Bar value={summary.score} />
-                <Text style={styles.dimensionMeta}>{summary.answered} of {summary.total} questions answered</Text>
+            {dominantLabel && (
+              <View style={styles.archeBlock}>
+                <Text style={styles.archeEyebrow}>Primary Archetype</Text>
+                <Text style={styles.archeName}>{dominantLabel.label}</Text>
               </View>
-            );
-          })}
-        </View>
+            )}
+          </Card>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Archetype balance</Text>
-          <Text style={styles.sectionSub}>How your choices are distributed so far</Text>
-        </View>
-
-        <View style={styles.archetypeGrid}>
-          {(Object.keys(archetypeCounts) as Array<keyof typeof archetypeCounts>).map(key => {
-            const label = archetypeLabels[key];
-            return (
-              <View key={key} style={styles.archetypeTile}>
-                <Text style={styles.archetypeTileEmoji}>{label.emoji}</Text>
-                <Text style={styles.archetypeTileCount}>{archetypeCounts[key]}</Text>
-                <Text style={styles.archetypeTileLabel}>{label.label}</Text>
-              </View>
-            );
-          })}
-        </View>
-
-        {__DEV__ ? (
-          <View style={styles.devCard}>
-            <Text style={styles.devTitle}>Developer tools</Text>
-            <Text style={styles.devText}>Reset your onboarding state so the intro flow appears again.</Text>
-            <TouchableOpacity
-              style={styles.devButton}
-              onPress={() => {
-                Alert.alert(
-                  'Reset onboarding?',
-                  'This clears onboarding completion and your profile archetype so you can replay the intro.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Reset',
-                      style: 'destructive',
-                      onPress: () => {
-                        resetOnboarding().catch(() => {});
-                      },
-                    },
-                  ]
+          {/* Archetype balance */}
+          <Card style={{ marginTop: 16 }}>
+            <Text style={styles.sectionEyebrow}>Archetype Balance</Text>
+            <Text style={styles.sectionTitle}>How your choices distribute</Text>
+            <View style={styles.stackBar}>
+              {Object.entries(archetypeCounts).map(([key, val], i) => {
+                const w = ((val as number) / totalArchetype) * 100;
+                if (!w) return null;
+                return <View key={key} style={{ width: `${w}%`, backgroundColor: ARCH_COLORS[i % ARCH_COLORS.length], height: '100%' }} />;
+              })}
+            </View>
+            <View style={{ marginTop: 14 }}>
+              {Object.entries(archetypeCounts).map(([key, val], i) => {
+                if (!val) return null;
+                const label = archetypeLabels[key as keyof typeof archetypeLabels]?.label ?? key;
+                const pct = Math.round(((val as number) / totalArchetype) * 100);
+                return (
+                  <View key={key} style={styles.legendRow}>
+                    <View style={[styles.legendDot, { backgroundColor: ARCH_COLORS[i % ARCH_COLORS.length] }]} />
+                    <Text style={styles.legendLabel}>{label}</Text>
+                    <Text style={styles.legendPct}>{pct}%</Text>
+                  </View>
                 );
-              }}
+              })}
+            </View>
+          </Card>
+
+          {/* Dimensions */}
+          <Card style={{ marginTop: 16 }}>
+            <Text style={styles.sectionEyebrow}>15 Dimensions</Text>
+            <Text style={styles.sectionTitle}>Your scores</Text>
+            <View style={{ marginTop: 8 }}>
+              {categoryMeta.map(cat => {
+                const score = dimensionScores[cat.id]?.score ?? 0;
+                return (
+                  <View key={cat.id} style={styles.dimRow}>
+                    <View style={styles.dimHead}>
+                      <Text style={styles.dimLabel}>{cat.label}</Text>
+                      <Text style={styles.dimScore}>{Math.round(score)}</Text>
+                    </View>
+                    <ProgressBar value={score / 100} tint={colors.sage} />
+                  </View>
+                );
+              })}
+            </View>
+          </Card>
+
+          {__DEV__ && (
+            <TouchableOpacity
+              onPress={() => Alert.alert('Reset', 'Reset onboarding?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Reset', style: 'destructive', onPress: () => resetOnboarding?.() },
+              ])}
+              style={styles.devBtn}
             >
-              <Text style={styles.devButtonText}>Reset onboarding</Text>
+              <Text style={styles.devTxt}>Dev: Reset Onboarding</Text>
             </TouchableOpacity>
-          </View>
-        ) : null}
-      </ScrollView>
+          )}
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  safe: { backgroundColor: colors.background },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+  container: { flex: 1, backgroundColor: colors.cream },
+  safe: { flex: 1 },
+  scroll: { paddingHorizontal: 24, paddingBottom: 40 },
+  identityRow: { flexDirection: 'row', alignItems: 'center' },
+  name: { fontFamily: fonts.serif, fontSize: 22, color: colors.ink },
+  totalTxt: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft, marginTop: 4 },
+  totalNum: { fontFamily: fonts.serif, color: colors.terracotta, fontSize: 16 },
+  archeBlock: { marginTop: 18, paddingTop: 18, borderTopWidth: 1, borderTopColor: colors.hairlineSoft },
+  archeEyebrow: {
+    fontFamily: fonts.sans, fontSize: 10, letterSpacing: 1.4,
+    textTransform: 'uppercase', color: colors.terracotta, marginBottom: 4,
   },
-  headerTitle: {
-    fontFamily: fonts.serif,
-    fontSize: 28,
-    fontStyle: 'italic',
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: -0.3,
+  archeName: { fontFamily: fonts.serif, fontSize: 22, color: colors.ink },
+  archeDesc: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft, marginTop: 6, lineHeight: 20 },
+  sectionEyebrow: {
+    fontFamily: fonts.sans, fontSize: 10, letterSpacing: 1.4,
+    textTransform: 'uppercase', color: colors.sage, marginBottom: 4,
   },
-  headerSub: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 6,
-    fontWeight: '500',
+  sectionTitle: { fontFamily: fonts.serif, fontSize: 20, color: colors.ink, marginBottom: 16 },
+  stackBar: {
+    flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden',
+    backgroundColor: colors.hairlineSoft,
   },
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
-  heroCard: {
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    paddingHorizontal: 22,
-    paddingVertical: 22,
-    marginBottom: 24,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  heroLabel: { fontSize: 10, letterSpacing: 1.8, color: colors.secondary, marginBottom: 8, textTransform: 'uppercase', fontWeight: '800', opacity: 0.8 },
-  heroName: { fontFamily: fonts.serif, fontSize: 26, fontStyle: 'italic', fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.3 },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.outlineVariant,
-    shadowColor: colors.secondary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  avatarText: { fontSize: 22, fontWeight: '700', color: colors.white, fontFamily: fonts.serif },
-  heroStats: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  statBlock: { flex: 1, alignItems: 'center' },
-  statValue: { fontFamily: fonts.serif, fontSize: 28, fontWeight: '700', color: colors.primary },
-  statLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 6, fontWeight: '600' },
-  statDivider: { width: 1, backgroundColor: colors.outlineVariant, marginHorizontal: 12 },
-  archetypeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  archetypeEmoji: { fontSize: 28 },
-  archetypeLabel: { fontSize: 10, color: colors.secondary, marginBottom: 4, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', opacity: 0.8 },
-  archetypeValue: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.2 },
-  sectionHeader: { marginBottom: 16, marginTop: 8 },
-  sectionTitle: { fontFamily: fonts.serif, fontSize: 22, fontStyle: 'italic', fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.3 },
-  sectionSub: { fontSize: 14, color: colors.textSecondary, marginTop: 6, fontWeight: '500' },
-  dimensionCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    marginBottom: 24,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  dimensionRow: { marginBottom: 18 },
-  dimensionTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  dimensionName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, flex: 1, paddingRight: 10, letterSpacing: -0.2 },
-  dimensionScore: { fontSize: 14, fontWeight: '700', color: colors.secondary },
-  barTrack: { height: 8, borderRadius: 4, backgroundColor: colors.outlineVariant, overflow: 'hidden', shadowColor: '#000000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1 },
-  barFill: { height: 8, borderRadius: 4, backgroundColor: colors.secondary },
-  dimensionMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 8, fontWeight: '500' },
-  archetypeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 12,
-  },
-  archetypeTile: {
-    width: '48%',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    marginBottom: 12,
-    alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  archetypeTileEmoji: { fontSize: 28, marginBottom: 8 },
-  archetypeTileCount: { fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: colors.primary },
-  archetypeTileLabel: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 6, fontWeight: '600' },
-  devCard: {
-    marginTop: 24,
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  devTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 8, letterSpacing: -0.2 },
-  devText: { fontSize: 14, color: colors.textSecondary, marginBottom: 16, fontWeight: '500' },
-  devButton: {
-    backgroundColor: colors.secondary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    shadowColor: colors.secondary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  devButtonText: { color: colors.white, fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
+  legendLabel: { flex: 1, fontFamily: fonts.sans, fontSize: 14, color: colors.ink },
+  legendPct: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft },
+  dimRow: { marginBottom: 14 },
+  dimHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  dimLabel: { fontFamily: fonts.sans, fontSize: 14, color: colors.ink },
+  dimScore: { fontFamily: fonts.serif, fontSize: 14, color: colors.inkSoft },
+  devBtn: { marginTop: 24, padding: 14, alignItems: 'center' },
+  devTxt: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted, letterSpacing: 0.5 },
 });

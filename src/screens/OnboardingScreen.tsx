@@ -94,7 +94,8 @@ export const OnboardingScreen: React.FC = () => {
   /* ---------- Welcome ---------- */
   if (step === 'welcome') {
     return (
-      <BotanicalBackdrop>
+      <View style={{ flex: 1, backgroundColor: colors.cream }}>
+        <BotanicalBackdrop variant="full" />
         <StatusBar style="dark" />
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
           <ScrollView contentContainerStyle={s.welcomeScroll} showsVerticalScrollIndicator={false}>
@@ -143,7 +144,7 @@ export const OnboardingScreen: React.FC = () => {
             </Text>
           </ScrollView>
         </SafeAreaView>
-      </BotanicalBackdrop>
+      </View>
     );
   }
 
@@ -161,7 +162,8 @@ export const OnboardingScreen: React.FC = () => {
   /* ---------- Name ---------- */
   if (step === 'name') {
     return (
-      <BotanicalBackdrop>
+      <View style={{ flex: 1, backgroundColor: colors.cream }}>
+        <BotanicalBackdrop variant="subtle" />
         <StatusBar style="dark" />
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -197,14 +199,15 @@ export const OnboardingScreen: React.FC = () => {
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
-      </BotanicalBackdrop>
+      </View>
     );
   }
 
   /* ---------- Interests ---------- */
   if (step === 'interests') {
     return (
-      <BotanicalBackdrop>
+      <View style={{ flex: 1, backgroundColor: colors.cream }}>
+        <BotanicalBackdrop variant="subtle" />
         <StatusBar style="dark" />
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
           <ScrollView contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false}>
@@ -250,7 +253,7 @@ export const OnboardingScreen: React.FC = () => {
             </View>
           </ScrollView>
         </SafeAreaView>
-      </BotanicalBackdrop>
+      </View>
     );
   }
 
@@ -287,7 +290,8 @@ export const OnboardingScreen: React.FC = () => {
   const selected = quizPhase === 'arche' ? archeAnswers[archeIndex] : riskAnswers[riskIndex];
 
   return (
-    <BotanicalBackdrop cornerOpacity={0.55}>
+    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+      <BotanicalBackdrop variant="subtle" />
       <StatusBar style="dark" />
       <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false}>
@@ -323,7 +327,7 @@ export const OnboardingScreen: React.FC = () => {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </BotanicalBackdrop>
+    </View>
   );
 };
 
