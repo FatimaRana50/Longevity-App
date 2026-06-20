@@ -95,7 +95,7 @@ export const OnboardingScreen: React.FC = () => {
   if (step === 'welcome') {
     return (
       <View style={{ flex: 1, backgroundColor: colors.cream }}>
-        <BotanicalBackdrop variant="full" />
+        <BotanicalBackdrop variant="full" showPlant={false} showSunflower={false} showCorners={false} />
         <StatusBar style="dark" />
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
           <ScrollView contentContainerStyle={s.welcomeScroll} showsVerticalScrollIndicator={false}>
@@ -163,7 +163,7 @@ export const OnboardingScreen: React.FC = () => {
   if (step === 'name') {
     return (
       <View style={{ flex: 1, backgroundColor: colors.cream }}>
-        <BotanicalBackdrop variant="subtle" />
+        <BotanicalBackdrop variant="subtle" showPlant={false} showSunflower={false} showCorners={false} />
         <StatusBar style="dark" />
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -207,7 +207,7 @@ export const OnboardingScreen: React.FC = () => {
   if (step === 'interests') {
     return (
       <View style={{ flex: 1, backgroundColor: colors.cream }}>
-        <BotanicalBackdrop variant="subtle" />
+        <BotanicalBackdrop variant="subtle" showPlant={false} showSunflower={false} showCorners={false} />
         <StatusBar style="dark" />
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
           <ScrollView contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false}>
@@ -291,7 +291,7 @@ export const OnboardingScreen: React.FC = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <BotanicalBackdrop variant="subtle" />
+      <BotanicalBackdrop variant="subtle" showPlant={false} showSunflower={false} showCorners={false} />
       <StatusBar style="dark" />
       <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false}>

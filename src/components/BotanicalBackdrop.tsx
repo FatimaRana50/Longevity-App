@@ -11,15 +11,17 @@ interface Props {
   variant?: 'full' | 'subtle' | 'top' | 'bottom';
   tint?: string;
   showPlant?: boolean;
+  showSunflower?: boolean;
+  showCorners?: boolean;
 }
 
 /**
  * Premium botanical backdrop. Place as first child of a screen container
  * with absolute fill — content sits on top of it.
  */
-export const BotanicalBackdrop: React.FC<Props> = ({ variant = 'subtle', tint = colors.cream, showPlant = true }) => {
-  const showTop = variant !== 'bottom';
-  const showBottom = variant !== 'top';
+export const BotanicalBackdrop: React.FC<Props> = ({ variant = 'subtle', tint = colors.cream, showPlant = true, showSunflower = true, showCorners = true }) => {
+  const showTop = showCorners && variant !== 'bottom';
+  const showBottom = showCorners && variant !== 'top';
   const opacity = variant === 'full' ? 0.35 : 0.18;
 
   return (
@@ -46,12 +48,14 @@ export const BotanicalBackdrop: React.FC<Props> = ({ variant = 'subtle', tint = 
           resizeMode="contain"
         />
       )}
-      <Image
-        source={SUNFLOWER}
-        style={styles.sunflower}
-        blurRadius={2}
-        resizeMode="contain"
-      />
+      {showSunflower && (
+        <Image
+          source={SUNFLOWER}
+          style={styles.sunflower}
+          blurRadius={2}
+          resizeMode="contain"
+        />
+      )}
     </View>
   );
 };
