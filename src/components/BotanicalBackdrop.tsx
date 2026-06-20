@@ -19,7 +19,7 @@ interface Props {
  * Premium botanical backdrop. Place as first child of a screen container
  * with absolute fill — content sits on top of it.
  */
-export const BotanicalBackdrop: React.FC<Props> = ({ variant = 'subtle', tint = colors.cream, showPlant = true, showSunflower = true, showCorners = true }) => {
+export const BotanicalBackdrop: React.FC<Props> = ({ variant = 'subtle', tint = colors.cream, showPlant = false, showSunflower = false, showCorners = false }) => {
   const showTop = showCorners && variant !== 'bottom';
   const showBottom = showCorners && variant !== 'top';
   const opacity = variant === 'full' ? 0.35 : 0.18;

@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
 import { colors, fonts, radii, shadow } from '../theme';
 import { useUser } from '../context/UserContext';
 import { archetypeLabels } from '../utils/longevity';
 import { BotanicalBackdrop } from '../components/BotanicalBackdrop';
-import { Header } from '../components/Header';
+import { TopHeader } from '../components/TopHeader';
+import { BottomNavigation } from '../components/BottomNavigation';
 import { PremiumButton } from '../components/PremiumButton';
 
 const CORNER = require('../../assets/corner-top-left.png');
 
 export const SocialShareScreen: React.FC = () => {
   const { user } = useUser();
+  const navigation = useNavigation<any>();
   const [sharing, setSharing] = useState(false);
 
   const archetype = user?.primaryArchetype;
@@ -36,16 +38,28 @@ export const SocialShareScreen: React.FC = () => {
     }
   };
 
+  const handleNavTab = (tab: 'daily' | 'explore' | 'journal' | 'profile' | 'more') => {
+    if (tab === 'more') return;
+    const tabName = tab === 'daily' ? 'TodayTab' : tab === 'explore' ? 'LibraryTab' : tab === 'journal' ? 'JournalTab' : 'ProfileTab';
+    navigation.getParent()?.navigate(tabName as any);
+  };
+
   if (!archetype || !label) {
     return (
       <View style={styles.container}>
         <BotanicalBackdrop variant="full" />
-        <SafeAreaView style={styles.center}>
+        <TopHeader
+          userName={user?.name}
+          onProfilePress={() => handleNavTab('profile')}
+          onMenuPress={() => {}}
+        />
+        <View style={styles.center}>
           <Text style={styles.emptyTitle}>Almost there</Text>
           <Text style={styles.emptySub}>
             Answer more questions to discover your archetype and unlock sharing.
           </Text>
-        </SafeAreaView>
+        </View>
+        <BottomNavigation active="more" onPress={handleNavTab} />
       </View>
     );
   }
@@ -54,10 +68,13 @@ export const SocialShareScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar style="dark" />
       <BotanicalBackdrop variant="subtle" />
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <Header title="Share Your Results" subtitle="An elegant card, ready to send" />
+      <TopHeader
+        userName={user?.name}
+        onProfilePress={() => handleNavTab('profile')}
+        onMenuPress={() => {}}
+      />
 
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* Preview card */}
           <View style={styles.card}>
             <Image source={CORNER} style={styles.cardCornerTL} resizeMode="contain" />
@@ -96,8 +113,9 @@ export const SocialShareScreen: React.FC = () => {
               longevity — and helps you find others who see aging the way you do.
             </Text>
           </View>
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
+
+      <BottomNavigation active="more" onPress={handleNavTab} />
     </View>
   );
 };

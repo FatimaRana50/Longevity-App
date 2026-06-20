@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Question, UserChoice } from '../types/index';
 import { db } from '../services/supabase';
@@ -12,9 +13,12 @@ import { getDailySelection } from '../services/daily';
 import { useUser } from '../context/UserContext';
 import { colors, fonts, radii, shadow } from '../theme';
 import { BotanicalBackdrop } from '../components/BotanicalBackdrop';
-import { Avatar } from '../components/Avatar';
 import { PremiumButton } from '../components/PremiumButton';
 import { ProgressBar } from '../components/ProgressBar';
+import { TopHeader } from '../components/TopHeader';
+import { BottomNavigation } from '../components/BottomNavigation';
+import { SuggestionCard } from '../components/SuggestionCard';
+import { getCategoryImage } from '../utils/categoryImages';
 
 /**
  * Daily Quest Screen — premium botanical redesign.
@@ -22,6 +26,7 @@ import { ProgressBar } from '../components/ProgressBar';
  */
 export const QuestionScreen: React.FC = () => {
   const { user } = useUser();
+  const navigation = useNavigation<any>();
   const userId = user?.id ?? '00000000-0000-0000-0000-000000000001';
 
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -96,77 +101,108 @@ export const QuestionScreen: React.FC = () => {
     );
   }
 
+  const handleNavTab = (tab: 'daily' | 'explore' | 'journal' | 'profile' | 'more') => {
+    if (tab === 'daily') return;
+    navigation.navigate(tab === 'explore' ? 'LibraryTab' : tab === 'journal' ? 'JournalTab' : tab === 'profile' ? 'ProfileTab' : 'MoreTab');
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       <BotanicalBackdrop variant="subtle" />
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        {/* Brand header */}
-        <View style={styles.brandRow}>
-          <View>
-            <Text style={styles.eyebrow}>Today's Reflection</Text>
-            <Text style={styles.brand}>The Longevity Game</Text>
-          </View>
-          <Avatar name={user?.name ?? 'You'} />
-        </View>
 
-        {/* Progress */}
-        <View style={styles.progressRow}>
-          <Text style={styles.progressLabel}>
-            Question {currentIndex + 1} of {questions.length}
-          </Text>
-          <Text style={styles.progressMeta}>{answeredCount}/{questions.length} today</Text>
-        </View>
-        <View style={styles.progressBarWrap}>
-          <ProgressBar value={(currentIndex + 1) / Math.max(1, questions.length)} />
-        </View>
+      <TopHeader
+        userName={user?.name}
+        onProfilePress={() => navigation.navigate('ProfileTab')}
+        onMenuPress={() => {}}
+      />
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text style={styles.categoryTag}>{q.category}</Text>
-            <Text style={styles.question}>{q.question}</Text>
+          {/* Progress */}
+          <View style={styles.progressRow}>
+            <Text style={styles.progressLabel}>
+              Question {currentIndex + 1} of {questions.length}
+            </Text>
+            <Text style={styles.progressMeta}>{answeredCount}/{questions.length} today</Text>
+          </View>
+          <View style={styles.progressBarWrap}>
+            <ProgressBar value={(currentIndex + 1) / Math.max(1, questions.length)} />
+          </View>
 
-            <OptionCard
-              label="A"
-              text={q.optionA.text}
-              selected={selected === 'A'}
-              onPress={() => setSelected('A')}
+          {/* Category image hero with overlaid question */}
+          <View style={styles.heroWrap}>
+            <Image
+              source={getCategoryImage(q.category || 'sleep')}
+              style={styles.heroImage}
+              resizeMode="cover"
             />
-            <OptionCard
-              label="B"
-              text={q.optionB.text}
-              selected={selected === 'B'}
-              onPress={() => setSelected('B')}
-            />
+            <View style={styles.heroOverlay} />
+            <View style={styles.heroContent}>
+              <Text style={styles.categoryTag}>{q.category}</Text>
+              <View>
+                <Text style={styles.heroQuestion}>{q.question}</Text>
+              </View>
+            </View>
+          </View>
 
-            <Text style={styles.reflectionLabel}>Add a reflection (optional)</Text>
-            <TextInput
-              style={styles.reflectionInput}
-              placeholder="What drew you to this choice?"
-              placeholderTextColor={colors.inkMuted}
-              value={reflection}
-              onChangeText={setReflection}
-              multiline
-              textAlignVertical="top"
-            />
+          <OptionCard
+            label="A"
+            text={q.optionA.text}
+            selected={selected === 'A'}
+            onPress={() => setSelected('A')}
+          />
+          <OptionCard
+            label="B"
+            text={q.optionB.text}
+            selected={selected === 'B'}
+            onPress={() => setSelected('B')}
+          />
 
-            <PremiumButton
-              label={currentIndex < questions.length - 1 ? 'Continue' : 'Complete Today'}
-              onPress={handleSubmit}
-              disabled={!selected}
-              loading={saving}
-              style={{ marginTop: 24 }}
-            />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+          {selected && (
+            <View style={styles.insightWrap}>
+              <Text style={styles.insightLabel}>
+                {selected === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype}
+              </Text>
+              <Text style={styles.insightText}>
+                {selected === 'A' ? q.optionA.insight.scienceSays : q.optionB.insight.scienceSays}
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.reflectionLabel}>Add a reflection (optional)</Text>
+          <TextInput
+            style={styles.reflectionInput}
+            placeholder="What drew you to this choice?"
+            placeholderTextColor={colors.inkMuted}
+            value={reflection}
+            onChangeText={setReflection}
+            multiline
+            textAlignVertical="top"
+          />
+
+          <PremiumButton
+            label={currentIndex < questions.length - 1 ? 'Continue' : 'Complete Today'}
+            onPress={handleSubmit}
+            disabled={!selected}
+            loading={saving}
+            style={{ marginTop: 24 }}
+          />
+
+          <View style={styles.suggestionWrap}>
+            <SuggestionCard />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <BottomNavigation active="daily" onPress={handleNavTab} />
     </View>
   );
 };
@@ -213,7 +249,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', color: colors.sage,
     backgroundColor: colors.cardWarm,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
-    marginBottom: 18,
+    marginBottom: 8,
   },
   question: {
     fontFamily: fonts.serif, fontSize: 28, lineHeight: 38,
@@ -221,11 +257,21 @@ const styles = StyleSheet.create({
   },
   option: {
     backgroundColor: colors.card,
-    borderRadius: radii.lg, borderWidth: 1, borderColor: colors.hairline,
+    borderRadius: radii.lg, borderWidth: 2, borderColor: colors.hairline,
+    borderLeftWidth: 4, borderLeftColor: colors.hairline,
     padding: 20, marginBottom: 14, flexDirection: 'row', alignItems: 'flex-start',
     ...shadow.soft,
   },
-  optionSelected: { borderColor: colors.terracotta, backgroundColor: colors.cardWarm },
+  optionSelected: {
+    borderColor: colors.terracotta,
+    borderLeftColor: colors.terracotta,
+    backgroundColor: colors.cardWarm,
+    shadowColor: colors.terracotta,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   optionBadge: {
     width: 32, height: 32, borderRadius: 16,
     borderWidth: 1.5, borderColor: colors.hairline,
@@ -245,4 +291,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontFamily: fonts.serif, fontSize: 26, color: colors.ink, textAlign: 'center' },
   emptySub: { fontFamily: fonts.sans, fontSize: 15, color: colors.inkSoft, marginTop: 8, textAlign: 'center' },
+  heroWrap: { borderRadius: radii.lg, overflow: 'hidden', marginBottom: 20, height: 320, justifyContent: 'flex-end' },
+  heroImage: { position: 'absolute', width: '100%', height: '100%' },
+  heroOverlay: { position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.3)' },
+  heroContent: { padding: 16, zIndex: 1, justifyContent: 'space-between', flex: 1 },
+  heroQuestion: { fontFamily: fonts.serif, fontSize: 25, lineHeight: 30, color: colors.cream, marginTop: 12, letterSpacing: -0.4 },
+  insightWrap: { marginTop: 16, padding: 16, backgroundColor: colors.cardWarm, borderRadius: radii.md, borderLeftWidth: 3, borderLeftColor: colors.terracotta },
+  insightLabel: { fontFamily: fonts.sans, fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.terracotta, marginBottom: 4 },
+  insightText: { fontFamily: fonts.serif, fontSize: 16, color: colors.ink, lineHeight: 24 },
+  suggestionWrap: { marginTop: 32, marginBottom: 40 },
 });

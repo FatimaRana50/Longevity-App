@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -13,9 +13,11 @@ import { useUser } from '../context/UserContext';
 import { colors, fonts, radii, shadow } from '../theme';
 import { ExploreStackParamList } from './ExploreScreen';
 import { BotanicalBackdrop } from '../components/BotanicalBackdrop';
-import { Header } from '../components/Header';
+import { TopHeader } from '../components/TopHeader';
+import { BottomNavigation } from '../components/BottomNavigation';
 import { PremiumButton } from '../components/PremiumButton';
 import { ProgressBar } from '../components/ProgressBar';
+import { getCategoryImage } from '../utils/categoryImages';
 
 type CategoryRoute = RouteProp<ExploreStackParamList, 'CategoryQuestions'>;
 
@@ -91,18 +93,27 @@ export const CategoryQuestionsScreen: React.FC = () => {
     );
   }
 
+  const handleNavTab = (tab: 'daily' | 'explore' | 'journal' | 'profile' | 'more') => {
+    if (tab === 'explore') return;
+    const tabName = tab === 'daily' ? 'TodayTab' : tab === 'journal' ? 'JournalTab' : tab === 'profile' ? 'ProfileTab' : 'MoreTab';
+    navigation.getParent()?.navigate(tabName as any);
+  };
+
   if (finished || !q) {
     return (
       <View style={styles.container}>
         <BotanicalBackdrop variant="full" />
-        <SafeAreaView style={styles.safe} edges={['top']}>
-          <Header title={categoryLabel} onBack={() => navigation.goBack()} />
-          <View style={styles.center}>
-            <Text style={styles.doneTitle}>Category Complete</Text>
-            <Text style={styles.doneSub}>You've reflected on every question in {categoryLabel}.</Text>
-            <PremiumButton label="Back to Explore" onPress={() => navigation.goBack()} style={{ marginTop: 28 }} />
-          </View>
-        </SafeAreaView>
+        <TopHeader
+          userName={user?.name}
+          onProfilePress={() => handleNavTab('profile')}
+          onMenuPress={() => {}}
+        />
+        <View style={styles.center}>
+          <Text style={styles.doneTitle}>Category Complete</Text>
+          <Text style={styles.doneSub}>You've reflected on every question in {categoryLabel}.</Text>
+          <PremiumButton label="Back to Explore" onPress={() => navigation.goBack()} style={{ marginTop: 28 }} />
+        </View>
+        <BottomNavigation active="explore" onPress={handleNavTab} />
       </View>
     );
   }
@@ -113,73 +124,99 @@ export const CategoryQuestionsScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar style="dark" />
       <BotanicalBackdrop variant="subtle" />
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <Header title={categoryLabel} onBack={() => navigation.goBack()} />
+      <TopHeader
+        userName={user?.name}
+        onProfilePress={() => handleNavTab('profile')}
+        onMenuPress={() => {}}
+      />
 
-        <View style={styles.progressWrap}>
-          <Text style={styles.progressLabel}>Question {currentIndex + 1} of {questions.length}</Text>
-          <View style={{ marginTop: 8 }}><ProgressBar value={pct} /></View>
-        </View>
+      <View style={styles.progressWrap}>
+        <Text style={styles.progressLabel}>Question {currentIndex + 1} of {questions.length}</Text>
+        <View style={{ marginTop: 8 }}><ProgressBar value={pct} /></View>
+      </View>
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text style={styles.question}>{q.question}</Text>
-
-            {(['A', 'B'] as const).map(letter => {
-              const opt = letter === 'A' ? q.optionA : q.optionB;
-              const sel = selected === letter;
-              return (
-                <TouchableOpacity
-                  key={letter}
-                  activeOpacity={0.85}
-                  onPress={() => setSelected(letter)}
-                  style={[styles.option, sel && styles.optionSel]}
-                >
-                  <View style={[styles.badge, sel && styles.badgeSel]}>
-                    <Text style={[styles.badgeTxt, sel && { color: colors.cream }]}>{letter}</Text>
-                  </View>
-                  <Text style={styles.optionTxt}>{opt.text}</Text>
-                </TouchableOpacity>
-              );
-            })}
-
-            <Text style={styles.label}>Reflection (optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="A note for your journal…"
-              placeholderTextColor={colors.inkMuted}
-              value={reflection}
-              onChangeText={setReflection}
-              multiline
-              textAlignVertical="top"
+          {/* Category image hero with overlaid question */}
+          <View style={styles.heroWrap}>
+            <Image
+              source={getCategoryImage(categoryId)}
+              style={styles.heroImage}
+              resizeMode="cover"
             />
-
-            <View style={styles.navRow}>
-              <PremiumButton
-                label="Previous"
-                variant="ghost"
-                onPress={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-                disabled={currentIndex === 0}
-                style={{ flex: 1, marginRight: 8 }}
-              />
-              <PremiumButton
-                label={currentIndex < questions.length - 1 ? 'Next' : 'Finish'}
-                onPress={handleAnswer}
-                disabled={!selected}
-                loading={saving}
-                style={{ flex: 1, marginLeft: 8 }}
-              />
+            <View style={styles.heroOverlay} />
+            <View style={styles.heroContent}>
+              <Text style={styles.heroQuestion}>{q.question}</Text>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+          </View>
+
+          {(['A', 'B'] as const).map(letter => {
+            const opt = letter === 'A' ? q.optionA : q.optionB;
+            const sel = selected === letter;
+            return (
+              <TouchableOpacity
+                key={letter}
+                activeOpacity={0.85}
+                onPress={() => setSelected(letter)}
+                style={[styles.option, sel && styles.optionSel]}
+              >
+                <View style={[styles.badge, sel && styles.badgeSel]}>
+                  <Text style={[styles.badgeTxt, sel && { color: colors.cream }]}>{letter}</Text>
+                </View>
+                <Text style={styles.optionTxt}>{opt.text}</Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          {selected && (
+            <View style={styles.insightWrap}>
+              <Text style={styles.insightLabel}>
+                {selected === 'A' ? q.optionA.insight.archetype : q.optionB.insight.archetype}
+              </Text>
+              <Text style={styles.insightText}>
+                {selected === 'A' ? q.optionA.insight.scienceSays : q.optionB.insight.scienceSays}
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.label}>Reflection (optional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="A note for your journal…"
+            placeholderTextColor={colors.inkMuted}
+            value={reflection}
+            onChangeText={setReflection}
+            multiline
+            textAlignVertical="top"
+          />
+
+          <View style={styles.navRow}>
+            <PremiumButton
+              label="Previous"
+              variant="ghost"
+              onPress={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+              disabled={currentIndex === 0}
+              style={{ flex: 1, marginRight: 8 }}
+            />
+            <PremiumButton
+              label={currentIndex < questions.length - 1 ? 'Next' : 'Finish'}
+              onPress={handleAnswer}
+              disabled={!selected}
+              loading={saving}
+              style={{ flex: 1, marginLeft: 8 }}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <BottomNavigation active="explore" onPress={handleNavTab} />
     </View>
   );
 };
@@ -221,4 +258,12 @@ const styles = StyleSheet.create({
   navRow: { flexDirection: 'row', marginTop: 24 },
   doneTitle: { fontFamily: fonts.serif, fontSize: 28, color: colors.ink, textAlign: 'center' },
   doneSub: { fontFamily: fonts.sans, fontSize: 15, color: colors.inkSoft, marginTop: 10, textAlign: 'center', lineHeight: 22 },
+  heroWrap: { borderRadius: radii.lg, overflow: 'hidden', marginBottom: 20, height: 320, justifyContent: 'flex-end' },
+  heroImage: { position: 'absolute', width: '100%', height: '100%' },
+  heroOverlay: { position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.3)' },
+  heroContent: { padding: 16, zIndex: 1 },
+  heroQuestion: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 36, color: colors.cream, letterSpacing: -0.4 },
+  insightWrap: { marginTop: 16, padding: 16, backgroundColor: colors.cardWarm, borderRadius: radii.md, borderLeftWidth: 3, borderLeftColor: colors.terracotta },
+  insightLabel: { fontFamily: fonts.sans, fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.terracotta, marginBottom: 4 },
+  insightText: { fontFamily: fonts.serif, fontSize: 16, color: colors.ink, lineHeight: 24 },
 });

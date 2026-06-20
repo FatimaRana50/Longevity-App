@@ -1,14 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { colors, fonts, radii, shadow } from '../theme';
+import { useUser } from '../context/UserContext';
 import { BotanicalBackdrop } from '../components/BotanicalBackdrop';
-import { Header } from '../components/Header';
+import { TopHeader } from '../components/TopHeader';
+import { BottomNavigation } from '../components/BottomNavigation';
 
 export const MoreScreen: React.FC = () => {
+  const { user } = useUser();
   const navigation = useNavigation<any>();
+
+  const handleNavTab = (tab: 'daily' | 'explore' | 'journal' | 'profile' | 'more') => {
+    if (tab === 'more') return;
+    const tabName = tab === 'daily' ? 'TodayTab' : tab === 'explore' ? 'LibraryTab' : tab === 'journal' ? 'JournalTab' : 'ProfileTab';
+    navigation.getParent()?.navigate(tabName as any);
+  };
 
   const menuItems = [
     {
@@ -29,26 +37,30 @@ export const MoreScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar style="dark" />
       <BotanicalBackdrop variant="subtle" />
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <Header title="More" subtitle="Additional features" />
+      <TopHeader
+        userName={user?.name}
+        onProfilePress={() => navigation.getParent()?.navigate('ProfileTab')}
+        onMenuPress={() => {}}
+      />
 
-        <View style={styles.content}>
-          {menuItems.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              onPress={item.onPress}
-              activeOpacity={0.7}
-              style={styles.menuItem}
-            >
-              <View style={styles.menuContent}>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <Text style={styles.menuDescription}>{item.description}</Text>
-              </View>
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </SafeAreaView>
+      <View style={styles.content}>
+        {menuItems.map(item => (
+          <TouchableOpacity
+            key={item.id}
+            onPress={item.onPress}
+            activeOpacity={0.7}
+            style={styles.menuItem}
+          >
+            <View style={styles.menuContent}>
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Text style={styles.menuDescription}>{item.description}</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <BottomNavigation active="more" onPress={handleNavTab} />
     </View>
   );
 };

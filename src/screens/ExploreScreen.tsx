@@ -1,20 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ImageBackground,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { categoryMeta, CategoryMeta } from '../data/all-questions';
 import { db } from '../services/supabase';
 import { useUser } from '../context/UserContext';
 import { colors, fonts, radii, shadow } from '../theme';
 import { getLatestUniqueChoices, normalizeUserChoice } from '../utils/longevity';
 import { BotanicalBackdrop } from '../components/BotanicalBackdrop';
-import { Header } from '../components/Header';
+import { TopHeader } from '../components/TopHeader';
+import { BottomNavigation } from '../components/BottomNavigation';
 import { Card } from '../components/Card';
 import { ProgressBar } from '../components/ProgressBar';
+
+// Drop these two files into your assets folder:
+//   assets/botanical-leaves.png   (transparent watercolor leaves)
+//   assets/zen-stones.jpg         (stacked stones with sprout)
+const LEAVES_IMG = require('../../assets/botanical-leaves.png');
+const STONES_IMG = require('../../assets/zen-stones.jpg');
 
 export type ExploreStackParamList = {
   ExploreHome: undefined;
@@ -45,8 +52,8 @@ export const ExploreScreen: React.FC = () => {
   const totalAnswered = Object.values(answeredByCategory).reduce((a, b) => a + b, 0);
   const totalQuestions = categoryMeta.reduce((a, c) => a + c.questionCount, 0);
   const overallPct = totalQuestions > 0 ? totalAnswered / totalQuestions : 0;
+  const overallPctLabel = Math.round(overallPct * 100);
 
-  // recommended: lowest-progress category
   const recommended = [...categoryMeta]
     .map(c => ({ ...c, pct: (answeredByCategory[c.id] || 0) / Math.max(1, c.questionCount) }))
     .sort((a, b) => a.pct - b.pct)[0];
@@ -79,59 +86,113 @@ export const ExploreScreen: React.FC = () => {
           </View>
           <Text style={styles.catCount}>{answered} of {item.questionCount} answered</Text>
         </View>
+        <View style={styles.catChevron}>
+          <Ionicons name="arrow-forward" size={18} color={colors.sage} />
+        </View>
       </TouchableOpacity>
     );
+  };
+
+  const handleNavTab = (tab: 'daily' | 'explore' | 'journal' | 'profile' | 'more') => {
+    if (tab === 'explore') return;
+    const tabMap: Record<string, string> = { daily: 'TodayTab', journal: 'JournalTab', profile: 'ProfileTab', more: 'MoreTab' };
+    navigation.getParent()?.navigate(tabMap[tab]);
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       <BotanicalBackdrop variant="subtle" />
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <Header title="Explore" subtitle="All 15 dimensions of longevity" />
 
-        <FlatList
-          data={categoryMeta}
-          keyExtractor={i => i.id}
-          renderItem={renderCategory}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          ListHeaderComponent={
-            <View style={{ marginBottom: 20 }}>
-              <Card>
+      <TopHeader
+        userName={user?.name}
+        onProfilePress={() => navigation.getParent()?.navigate('ProfileTab')}
+        onMenuPress={() => {}}
+      />
+
+      <FlatList
+        data={categoryMeta}
+        keyExtractor={i => i.id}
+        renderItem={renderCategory}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ListHeaderComponent={
+          <View style={{ marginBottom: 20 }}>
+            {/* OVERALL PROGRESS — with botanical leaves decoration */}
+            <Card>
+              <View style={styles.overallInner}>
+                <Image
+                  source={LEAVES_IMG}
+                  style={styles.leavesDecor}
+                  resizeMode="contain"
+                  pointerEvents="none"
+                />
                 <Text style={styles.eyebrow}>Overall Progress</Text>
                 <Text style={styles.bigStat}>
                   <Text style={styles.bigStatNum}>{totalAnswered}</Text>
                   <Text style={styles.bigStatDen}> / {totalQuestions}</Text>
                 </Text>
                 <Text style={styles.statSub}>questions answered</Text>
-                <View style={{ marginTop: 14 }}>
-                  <ProgressBar value={overallPct} />
-                </View>
-              </Card>
 
-              {recommended && (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => navigation.navigate('CategoryQuestions', {
-                    categoryId: recommended.id,
-                    categoryLabel: recommended.label,
-                    categoryIcon: recommended.icon,
-                  })}
-                  style={{ marginTop: 12 }}
+                <View style={styles.progressRow}>
+                  <View style={{ flex: 1 }}>
+                    <ProgressBar value={overallPct} />
+                  </View>
+                  <View style={styles.progressBadge}>
+                    <Ionicons name="leaf-outline" size={14} color={colors.terracotta} />
+                  </View>
+                </View>
+
+                <View style={styles.pctChip}>
+                  <Text style={styles.pctChipTxt}>{overallPctLabel}% COMPLETED</Text>
+                </View>
+              </View>
+            </Card>
+
+            {/* SUGGESTED FOR YOU — image background hero card */}
+            {recommended && (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => navigation.navigate('CategoryQuestions', {
+                  categoryId: recommended.id,
+                  categoryLabel: recommended.label,
+                  categoryIcon: recommended.icon,
+                })}
+                style={styles.suggestedWrap}
+              >
+                <View style={styles.suggestedSideBar}>
+                  <View style={styles.sparkleBadge}>
+                    <Ionicons name="sparkles" size={16} color={colors.cream} />
+                  </View>
+                </View>
+
+                <ImageBackground
+                  source={STONES_IMG}
+                  style={styles.suggestedBg}
+                  imageStyle={styles.suggestedBgImg}
                 >
-                  <Card variant="warm" accent={colors.sage}>
+                  <View style={styles.suggestedOverlay} />
+                  <View style={styles.suggestedContent}>
                     <Text style={[styles.eyebrow, { color: colors.sage }]}>Suggested for you</Text>
-                    <Text style={styles.recTitle}>Continue with {recommended.label}</Text>
-                    <Text style={styles.recSub}>A balanced practice covers every dimension.</Text>
-                  </Card>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-        />
-      </SafeAreaView>
+                    <Text style={styles.recTitle}>Continue with{'\n'}{recommended.label}</Text>
+                    <Text style={styles.recSub}>A balanced practice covers{'\n'}every dimension.</Text>
+
+                    <View style={styles.resumeRow}>
+                      <Text style={styles.resumeTxt}>RESUME JOURNEY</Text>
+                      <View style={styles.resumeBtn}>
+                        <Ionicons name="arrow-forward" size={16} color={colors.terracotta} />
+                      </View>
+                    </View>
+                  </View>
+                </ImageBackground>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+      />
+
+      <BottomNavigation active="explore" onPress={handleNavTab} />
     </View>
   );
 };
@@ -145,27 +206,125 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', color: colors.terracotta, marginBottom: 8,
   },
   bigStat: { marginTop: 4 },
-  bigStatNum: { fontFamily: fonts.serif, fontSize: 40, color: colors.ink, letterSpacing: -1 },
-  bigStatDen: { fontFamily: fonts.serif, fontSize: 22, color: colors.inkMuted },
+  bigStatNum: { fontFamily: fonts.serif, fontSize: 44, color: colors.ink, letterSpacing: -1 },
+  bigStatDen: { fontFamily: fonts.serif, fontSize: 24, color: colors.inkMuted },
   statSub: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft, marginTop: 2 },
-  recTitle: { fontFamily: fonts.serif, fontSize: 20, color: colors.ink, marginTop: 2 },
-  recSub: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft, marginTop: 6 },
-  categoryRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: colors.card, borderRadius: radii.lg, padding: 18,
+
+  overallInner: { position: 'relative', overflow: 'hidden' },
+  leavesDecor: {
+    position: 'absolute',
+    right: -28, top: -36,
+    width: 180, height: 180,
+    opacity: 0.85,
+  },
+  progressRow: {
+    marginTop: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  progressBadge: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: colors.cardWarm,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.hairline,
+  },
+  pctChip: {
+    alignSelf: 'flex-start',
+    marginTop: 14,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: colors.cardWarm,
     borderWidth: 1, borderColor: colors.hairlineSoft,
+  },
+  pctChipTxt: {
+    fontFamily: fonts.sans, fontSize: 10, letterSpacing: 1.2,
+    color: colors.inkSoft, textTransform: 'uppercase',
+  },
+
+  /* Suggested hero */
+  suggestedWrap: {
+    marginTop: 16,
+    flexDirection: 'row',
+    borderRadius: radii.lg,
+    overflow: 'hidden',
     ...shadow.soft,
   },
+  suggestedSideBar: {
+    width: 40,
+    backgroundColor: colors.sage,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sparkleBadge: {
+    width: 34, height: 34, borderRadius: 17,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  suggestedBg: {
+    flex: 1,
+    minHeight: 200,
+  },
+  suggestedBgImg: {
+    // tint the image toward cream
+  },
+  suggestedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(248, 243, 232, 0.55)',
+  },
+  suggestedContent: {
+    padding: 20,
+    paddingRight: 130, // leave room for stones image on the right
+  },
+  recTitle: {
+    fontFamily: fonts.serif, fontSize: 24, color: colors.ink,
+    marginTop: 4, lineHeight: 30,
+  },
+  recSub: {
+    fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft,
+    marginTop: 10, lineHeight: 19,
+  },
+  resumeRow: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 18, gap: 12,
+  },
+  resumeTxt: {
+    fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.4,
+    color: colors.terracotta, textTransform: 'uppercase', fontWeight: '600',
+  },
+  resumeBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    borderWidth: 1, borderColor: colors.terracotta,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+
+  /* Category rows */
+  categoryRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.card, borderRadius: radii.lg, padding: 18,
+    borderWidth: 2, borderColor: colors.hairlineSoft,
+    borderLeftWidth: 5, borderLeftColor: colors.terracotta,
+    ...shadow.soft,
+    shadowColor: colors.terracotta,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
   catIconWrap: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 48, height: 48, borderRadius: 24,
     backgroundColor: colors.cardWarm,
     alignItems: 'center', justifyContent: 'center', marginRight: 14,
     borderWidth: 1, borderColor: colors.hairline,
   },
-  catIconText: { fontFamily: fonts.serif, fontSize: 18, color: colors.terracotta },
+  catIconText: { fontFamily: fonts.serif, fontSize: 20, color: colors.terracotta },
   catTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  catLabel: { fontFamily: fonts.serif, fontSize: 18, color: colors.ink },
+  catLabel: { fontFamily: fonts.serif, fontSize: 19, color: colors.ink },
   donePill: { backgroundColor: colors.sage, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   donePillTxt: { fontFamily: fonts.sans, fontSize: 10, color: colors.cream, letterSpacing: 0.8, textTransform: 'uppercase' },
   catCount: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkSoft, marginTop: 6 },
+  catChevron: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 1, borderColor: colors.hairline,
+    alignItems: 'center', justifyContent: 'center',
+    marginLeft: 12,
+  },
 });
