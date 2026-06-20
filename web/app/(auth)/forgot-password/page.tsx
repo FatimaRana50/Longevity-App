@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Mail, ArrowRight, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { auth } from '@/lib/api'
 
 const inputCls = 'w-full pl-11 pr-4 py-3.5 rounded-xl border border-[#DDE0D8] bg-white text-[#1C1C18] text-[14px] placeholder:text-[#A8ADA4] focus:outline-none focus:border-[#546342] focus:ring-3 focus:ring-[#546342]/12 transition-all duration-150'
 
@@ -15,11 +15,14 @@ export default function ForgotPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError('')
-    const { error } = await createClient().auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    if (error) { setError(error.message); setLoading(false); return }
-    setSent(true); setLoading(false)
+    try {
+      await auth.forgotPassword(email)
+      setSent(true)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Request failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (sent) return (

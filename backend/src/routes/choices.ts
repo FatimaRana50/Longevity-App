@@ -6,12 +6,13 @@ import { requireAuth, AuthRequest } from '../middleware/auth'
 const router = Router()
 
 const ChoiceSchema = z.object({
-  question_id: z.string().uuid(),
-  selected_option: z.enum(['A', 'B']),
+  question_id: z.string(),
+  selected_option: z.enum(['A', 'B']).optional(),
+  skipped: z.boolean().optional(),
   reflection: z.string().max(2000).optional(),
   mood: z.string().optional(),
   tags: z.array(z.string()).optional(),
-})
+}).refine(d => d.skipped || d.selected_option, { message: 'selected_option required unless skipped' })
 
 // POST /choices
 router.post('/', requireAuth, async (req, res: Response) => {
@@ -21,22 +22,25 @@ router.post('/', requireAuth, async (req, res: Response) => {
     return res.status(400).json({ data: null, error: { message: 'Invalid input', code: 'VALIDATION_ERROR', details: parsed.error.flatten() } })
   }
 
-  const { question_id, selected_option, reflection, mood, tags } = parsed.data
+  const { question_id, selected_option, skipped, reflection, mood, tags } = parsed.data
 
-  // Get the question to determine archetype
-  const { data: question } = await supabase
-    .from('questions').select('option_a_archetype,option_b_archetype,category').eq('id', question_id).single()
+  let selected_archetype: string | null = null
+  let category: string | null = null
 
-  const selected_archetype = selected_option === 'A'
-    ? question?.option_a_archetype
-    : question?.option_b_archetype
+  if (!skipped && selected_option) {
+    const { data: question } = await supabase
+      .from('questions').select('option_a_archetype,option_b_archetype,category').eq('id', question_id).single()
+    selected_archetype = (selected_option === 'A' ? question?.option_a_archetype : question?.option_b_archetype) ?? null
+    category = question?.category ?? null
+  }
 
   const { data, error } = await supabase.from('user_choices').upsert({
     user_id: userId,
     question_id,
-    selected_option,
+    selected_option: selected_option ?? null,
     selected_archetype,
-    category: question?.category,
+    skipped: skipped ?? false,
+    category,
     reflection: reflection ?? null,
     mood: mood ?? null,
     tags: tags ?? [],
@@ -45,8 +49,7 @@ router.post('/', requireAuth, async (req, res: Response) => {
 
   if (error) return res.status(500).json({ data: null, error: { message: error.message } })
 
-  // Trigger archetype recalculation (fire and forget)
-  recalculateArchetype(userId).catch(() => {})
+  if (!skipped) recalculateArchetype(userId).catch(() => {})
 
   res.status(201).json({ data, error: null })
 })

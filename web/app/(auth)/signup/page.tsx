@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { auth } from '@/lib/api'
 
 const PW_RULES = [
   { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -36,20 +36,19 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError('')
-    const { error } = await createClient().auth.signUp({
-      email, password, options: { data: { name } },
-    })
-    if (error) { setError(error.message); setLoading(false); return }
-    router.push('/onboarding')
+    try {
+      await auth.signup(email, password, name)
+      router.push('/onboarding')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Signup failed')
+      setLoading(false)
+    }
   }
 
   async function handleSocial(provider: 'google' | 'apple') {
     setSocial(provider); setError('')
-    const { error } = await createClient().auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/onboarding` },
-    })
-    if (error) { setError(error.message); setSocial(null) }
+    setError(`${provider} sign-in coming soon`)
+    setSocial(null)
   }
 
   const pwStrength = PW_RULES.filter(r => r.test(password)).length

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { auth } from '@/lib/api'
 
 /* ── Shared field wrapper ── */
 function Field({ label, aside, children }: { label: string; aside?: React.ReactNode; children: React.ReactNode }) {
@@ -32,18 +32,20 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError('')
-    const { error } = await createClient().auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false); return }
-    router.push('/today')
+    try {
+      await auth.login(email, password)
+      router.push('/today')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed')
+      setLoading(false)
+    }
   }
 
   async function handleSocial(provider: 'google' | 'apple') {
     setSocial(provider); setError('')
-    const { error } = await createClient().auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/today` },
-    })
-    if (error) { setError(error.message); setSocial(null) }
+    // Social login not yet supported via backend
+    setError(`${provider} sign-in coming soon`)
+    setSocial(null)
   }
 
   return (

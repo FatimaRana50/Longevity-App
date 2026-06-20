@@ -64,7 +64,7 @@ export default function CategoryPage() {
         <Badge variant="category">{answeredCount} / {answeredCount + qs.length}</Badge>
       </div>
 
-      {done ? (
+      {done || !qs[currentIndex] ? (
         <Card className="text-center py-12">
           <p className="text-5xl mb-4">🎉</p>
           <h2 className="font-serif italic text-2xl text-primary mb-2">Category Complete!</h2>
@@ -75,6 +75,7 @@ export default function CategoryPage() {
         </Card>
       ) : (
         <QuestionCard
+          key={qs[currentIndex].id}
           question={qs[currentIndex]}
           answeredCount={answeredCount}
           totalQuestions={answeredCount + qs.length}

@@ -7,9 +7,21 @@ const router = Router()
 
 // GET /profile
 router.get('/', requireAuth, async (req, res: Response) => {
-  const { userId } = req as AuthRequest
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
-  if (error) return res.status(404).json({ data: null, error: { message: 'Profile not found' } })
+  const { userId, userEmail } = req as AuthRequest
+  let { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
+
+  if (error || !data) {
+    console.log('[profile] select error:', error?.message, '| userId:', userId, '| email:', userEmail)
+    const { data: created, error: createErr } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, email: userEmail, name: userEmail?.split('@')[0] ?? 'User' }, { onConflict: 'id' })
+      .select()
+      .single()
+    console.log('[profile] upsert error:', createErr?.message)
+    if (createErr || !created) return res.status(500).json({ data: null, error: { message: createErr?.message ?? 'Could not create profile' } })
+    data = created
+  }
+
   res.json({ data, error: null })
 })
 
@@ -54,6 +66,13 @@ router.patch('/', requireAuth, async (req, res: Response) => {
     name: z.string().min(1).max(100).optional(),
     avatar_url: z.string().url().optional(),
     risk_tolerance: z.string().optional(),
+    age_range: z.string().optional(),
+    gender: z.string().optional(),
+    country: z.string().optional(),
+    interests: z.array(z.string()).optional(),
+    goals: z.array(z.string()).optional(),
+    onboarding_completed: z.boolean().optional(),
+    archetype: z.string().optional(),
   })
   const parsed = allowed.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ data: null, error: { message: 'Invalid input' } })

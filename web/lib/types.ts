@@ -50,7 +50,7 @@ export interface Question {
   option_b_insight?: string
   option_a_archetype?: string
   option_b_archetype?: string
-  difficulty: 'easy' | 'medium' | 'hard'
+  difficulty?: 'easy' | 'medium' | 'hard'
   is_premium: boolean
 }
 
@@ -96,12 +96,12 @@ export const CATEGORY_META: Record<CategorySlug, { label: string; icon: LucideIc
   legacy:      { label: 'Legacy & Purpose',      icon: Star,        color: 'text-yellow-600  bg-yellow-50'  },
 }
 
-export const ARCHETYPE_META: Record<ArchetypeType, { label: string; icon: LucideIcon; color: string; tagline: string }> = {
-  'healthspan-maximizer':       { label: 'Healthspan Maximizer',       icon: Activity,    color: 'text-emerald-600 bg-emerald-50', tagline: 'Quality of life above all else' },
-  'prevention-first-optimizer': { label: 'Prevention-First Optimizer', icon: Shield,      color: 'text-blue-600    bg-blue-50',    tagline: 'Stop problems before they start' },
-  'natural-balance-seeker':     { label: 'Natural Balance Seeker',     icon: TreePine,    color: 'text-green-600   bg-green-50',   tagline: 'Nature knows best' },
-  'tech-forward-biohacker':     { label: 'Tech-Forward Biohacker',     icon: Microscope,  color: 'text-violet-600  bg-violet-50',  tagline: 'Optimize everything' },
-  'purpose-driven-ageless':     { label: 'Purpose-Driven Ageless',     icon: Sparkles,    color: 'text-amber-600   bg-amber-50',   tagline: 'Meaning fuels longevity' },
-  'social-wellness-connector':  { label: 'Social Wellness Connector',  icon: Heart,       color: 'text-rose-600    bg-rose-50',    tagline: 'Relationships are medicine' },
-  'longevity-realist':          { label: 'Longevity Realist',          icon: BarChart3,   color: 'text-slate-600   bg-slate-50',   tagline: 'Balanced, evidence-based living' },
+export const ARCHETYPE_META: Record<ArchetypeType, { label: string; icon: LucideIcon; color: string; tagline: string; emoji: string }> = {
+  'healthspan-maximizer':       { label: 'Healthspan Maximizer',       icon: Activity,    color: 'text-emerald-600 bg-emerald-50', tagline: 'Quality of life above all else',    emoji: '💚' },
+  'prevention-first-optimizer': { label: 'Prevention-First Optimizer', icon: Shield,      color: 'text-blue-600    bg-blue-50',    tagline: 'Stop problems before they start',   emoji: '🛡️' },
+  'natural-balance-seeker':     { label: 'Natural Balance Seeker',     icon: TreePine,    color: 'text-green-600   bg-green-50',   tagline: 'Nature knows best',                 emoji: '🌿' },
+  'tech-forward-biohacker':     { label: 'Tech-Forward Biohacker',     icon: Microscope,  color: 'text-violet-600  bg-violet-50',  tagline: 'Optimize everything',               emoji: '⚗️' },
+  'purpose-driven-ageless':     { label: 'Purpose-Driven Ageless',     icon: Sparkles,    color: 'text-amber-600   bg-amber-50',   tagline: 'Meaning fuels longevity',           emoji: '⭐' },
+  'social-wellness-connector':  { label: 'Social Wellness Connector',  icon: Heart,       color: 'text-rose-600    bg-rose-50',    tagline: 'Relationships are medicine',        emoji: '❤️' },
+  'longevity-realist':          { label: 'Longevity Realist',          icon: BarChart3,   color: 'text-slate-600   bg-slate-50',   tagline: 'Balanced, evidence-based living',   emoji: '⚖️' },
 }

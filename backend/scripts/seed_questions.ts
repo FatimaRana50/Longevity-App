@@ -1,9 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { createClient } from '@supabase/supabase-js'
-import { allQuestions } from '../src/data/all-questions'
 
-// Load backend .env (has service role key)
+// Load .env from backend/
 function loadEnv(filePath: string) {
   if (!fs.existsSync(filePath)) return
   fs.readFileSync(filePath, 'utf8').split(/\r?\n/).forEach(line => {
@@ -17,9 +16,7 @@ function loadEnv(filePath: string) {
   })
 }
 
-const root = path.resolve(__dirname, '..')
-loadEnv(path.join(root, 'backend', '.env'))
-loadEnv(path.join(root, '.env.local'))
+loadEnv(path.join(__dirname, '..', '.env'))
 
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -29,11 +26,13 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1)
 }
 
-// Old data uses 'environmental', new schema uses 'environment'
+// Inline the question data so we don't need to resolve mobile app modules
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { allQuestions } = require('../../src/data/all-questions')
+
 const CATEGORY_MAP: Record<string, string> = {
   environmental: 'environment',
-  'work-life':   'work-life',
-  worklife:      'work-life',
+  worklife: 'work-life',
 }
 
 function mapCategory(cat: string): string {
@@ -44,7 +43,16 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-const payload = allQuestions.map(q => ({
+interface Question {
+  id: string
+  category: string
+  question: string
+  optionA: { text: string; insight?: { text?: string; archetype?: string } }
+  optionB: { text: string; insight?: { text?: string; archetype?: string } }
+  difficulty?: string
+}
+
+const payload = (allQuestions as Question[]).map(q => ({
   category:           mapCategory(q.category),
   question_text:      q.question,
   option_a_text:      q.optionA.text,
@@ -66,12 +74,10 @@ async function main() {
 
   for (let i = 0; i < payload.length; i += batchSize) {
     const batch = payload.slice(i, i + batchSize)
-    const { error } = await supabase
-      .from('questions')
-      .insert(batch)
+    const { error } = await supabase.from('questions').insert(batch)
 
     if (error) {
-      console.error('Error on batch starting at', i, error)
+      console.error('Error on batch starting at', i, ':', error.message)
       process.exit(1)
     }
 
@@ -79,16 +85,12 @@ async function main() {
     console.log(`  ${processed}/${payload.length}`)
   }
 
-  console.log(`✓ Done. ${payload.length} questions seeded.`)
+  console.log(`\n✓ Done. ${payload.length} questions seeded.`)
 
-  // Print category breakdown
   const counts: Record<string, number> = {}
   payload.forEach(q => { counts[q.category] = (counts[q.category] ?? 0) + 1 })
   console.log('\nBy category:')
   Object.entries(counts).sort().forEach(([cat, n]) => console.log(`  ${cat}: ${n}`))
 }
 
-main().catch(err => {
-  console.error(err)
-  process.exit(1)
-})
+main().catch(err => { console.error(err); process.exit(1) })

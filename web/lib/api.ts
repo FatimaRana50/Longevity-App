@@ -1,11 +1,56 @@
-import { createClient } from './supabase'
-
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 
-async function getToken(): Promise<string | null> {
-  const supabase = createClient()
-  const { data } = await supabase.auth.getSession()
-  return data.session?.access_token ?? null
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem('access_token') ?? sessionStorage.getItem('access_token') ?? null
+}
+
+export function setSession(accessToken: string, refreshToken: string) {
+  localStorage.setItem('access_token', accessToken)
+  localStorage.setItem('refresh_token', refreshToken)
+  // Cookie lets middleware check auth server-side
+  document.cookie = `access_token=${accessToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
+}
+
+export function clearSession() {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  document.cookie = 'access_token=; path=/; max-age=0'
+}
+
+export const auth = {
+  signup: async (email: string, password: string, name?: string) => {
+    const res = await fetch(`${BASE}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name }),
+    })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json?.error?.message ?? 'Signup failed')
+    if (json.data.accessToken) setSession(json.data.accessToken, json.data.refreshToken)
+    return json.data as { accessToken?: string; user: { id: string; email: string } }
+  },
+  login: async (email: string, password: string) => {
+    const res = await fetch(`${BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json?.error?.message ?? 'Login failed')
+    setSession(json.data.accessToken, json.data.refreshToken)
+    return json.data as { accessToken: string; refreshToken: string; user: { id: string; email: string } }
+  },
+  forgotPassword: async (email: string) => {
+    const res = await fetch(`${BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json?.error?.message ?? 'Request failed')
+    return json.data as { message: string }
+  },
 }
 
 async function request<T>(
@@ -13,7 +58,7 @@ async function request<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const token = await getToken()
+  const token = getToken()
   const res = await fetch(`${BASE}/api${path}`, {
     method,
     headers: {
@@ -22,6 +67,11 @@ async function request<T>(
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
+  if (res.status === 401) {
+    clearSession()
+    if (typeof window !== 'undefined') window.location.href = '/login'
+    throw new Error('Session expired — please sign in again')
+  }
   const json = await res.json()
   if (!res.ok) throw new Error(json?.error?.message ?? `API error ${res.status}`)
   return json.data as T
@@ -39,7 +89,7 @@ export const questions = {
 
 // ── Choices ────────────────────────────────────────────────
 export const choices = {
-  save: (body: { question_id: string; selected_option: 'A' | 'B'; reflection?: string }) =>
+  save: (body: { question_id: string; selected_option?: 'A' | 'B'; skipped?: boolean; reflection?: string }) =>
     request<UserChoice>('POST', '/choices', body),
   list: () =>
     request<UserChoice[]>('GET', '/choices'),
@@ -95,6 +145,22 @@ export const insights = {
     request<Insight>('POST', '/insights/generate', { insight_type }),
 }
 
+// ── Friends ────────────────────────────────────────────────
+export const friends = {
+  list: () => request<FriendEntry[]>('GET', '/friends'),
+  pending: () => request<FriendRequest[]>('GET', '/friends/pending'),
+  invite: (email: string) => request<{ id: string; friend_name: string }>('POST', '/friends/invite', { email }),
+  accept: (id: string) => request<unknown>('POST', `/friends/accept/${id}`),
+  decline: (id: string) => request<unknown>('POST', `/friends/decline/${id}`),
+  remove: (id: string) => request<unknown>('DELETE', `/friends/${id}`),
+  compare: (friendId: string) => request<FriendComparison>('GET', `/friends/compare/${friendId}`),
+}
+
+// ── Export ─────────────────────────────────────────────────
+export const exportApi = {
+  journal: () => request<JournalExport>('GET', '/export/journal'),
+}
+
 // ── Couples ────────────────────────────────────────────────
 export const couples = {
   invite: () =>
@@ -109,13 +175,14 @@ export const couples = {
 export interface Question {
   id: string
   question_text: string
-  category: string
+  category: import('./types').CategorySlug
   option_a_text: string
   option_b_text: string
   option_a_insight?: string
   option_b_insight?: string
   option_a_archetype?: string
   option_b_archetype?: string
+  difficulty?: 'easy' | 'medium' | 'hard'
   is_premium: boolean
   is_active: boolean
 }
@@ -165,6 +232,32 @@ export interface Streak {
   longest_streak: number
   total_questions_answered: number
   last_activity_date: string
+}
+
+export interface FriendEntry {
+  friendship_id: string
+  status: string
+  friend: { id: string; name: string; email: string; archetype?: string } | null
+}
+
+export interface FriendRequest {
+  request_id: string
+  from: { id: string; name: string; email: string } | null
+  created_at: string
+}
+
+export interface FriendComparison {
+  friend: { name: string; archetype?: string } | null
+  shared_questions: number
+  agreements: number
+  compatibility: number | null
+}
+
+export interface JournalExport {
+  profile: { name: string; email: string; archetype?: string; created_at: string } | null
+  entries: JournalEntry[]
+  streak: Streak | null
+  exported_at: string
 }
 
 export interface Insight {

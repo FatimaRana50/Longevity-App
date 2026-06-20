@@ -1,44 +1,23 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next()
+const APP_ROUTES = ['/today', '/explore', '/journal', '/insights', '/profile', '/share', '/couples', '/onboarding', '/friends']
+const AUTH_ROUTES = ['/login', '/signup']
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('access_token')?.value
+  const path = request.nextUrl.pathname
 
-  if (!supabaseUrl || !supabaseKey || supabaseUrl === 'your_supabase_url_here') {
-    return response
-  }
+  const isAppRoute = APP_ROUTES.some(r => path.startsWith(r))
+  const isAuthRoute = AUTH_ROUTES.includes(path)
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll: (cookies) =>
-          cookies.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          ),
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const appRoutes = ['/today', '/explore', '/journal', '/profile', '/share', '/couples', '/onboarding']
-  const isAppRoute = appRoutes.some(r => request.nextUrl.pathname.startsWith(r))
-  const isAuthRoute = ['/login', '/signup'].includes(request.nextUrl.pathname)
-
-  if (!user && isAppRoute) {
+  if (!token && isAppRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
-  if (user && isAuthRoute) {
+  if (token && isAuthRoute) {
     return NextResponse.redirect(new URL('/today', request.url))
   }
 
-  return response
+  return NextResponse.next()
 }
 
 export const config = {

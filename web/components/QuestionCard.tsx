@@ -1,8 +1,9 @@
 'use client'
 import { useState } from 'react'
-import { ArrowRight, Loader2, Sparkles } from 'lucide-react'
+import { ArrowRight, Loader2, Sparkles, SkipForward } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { ProgressBar } from '@/components/ui/ProgressBar'
+import { choices as choicesApi } from '@/lib/api'
 import type { Question } from '@/lib/types'
 
 interface QuestionCardProps {
@@ -11,20 +12,39 @@ interface QuestionCardProps {
   totalQuestions: number
   onSubmit: (choice: 'A' | 'B', reflection?: string) => Promise<void>
   onNext: () => void
+  onSkip?: () => void
+  showSkip?: boolean
 }
 
-export function QuestionCard({ question, answeredCount, totalQuestions, onSubmit, onNext }: QuestionCardProps) {
+export function QuestionCard({ question, answeredCount, totalQuestions, onSubmit, onNext, onSkip, showSkip = true }: QuestionCardProps) {
   const [selected, setSelected] = useState<'A' | 'B' | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [reflection, setReflection] = useState('')
   const [loading, setLoading] = useState(false)
+  const [skipping, setSkipping] = useState(false)
+  const [communityStats, setCommunityStats] = useState<{ total: number; A: number; B: number } | null>(null)
 
   async function handleSubmit() {
     if (!selected) return
     setLoading(true)
     await onSubmit(selected, reflection || undefined)
+    // Fetch community stats after submitting
+    try {
+      const stats = await choicesApi.stats(question.id)
+      setCommunityStats(stats)
+    } catch { /* silent */ }
     setSubmitted(true)
     setLoading(false)
+  }
+
+  async function handleSkip() {
+    setSkipping(true)
+    try {
+      await choicesApi.save({ question_id: question.id, skipped: true })
+    } catch { /* silent */ }
+    setSkipping(false)
+    onSkip?.()
+    onNext()
   }
 
   const options = [
@@ -32,13 +52,15 @@ export function QuestionCard({ question, answeredCount, totalQuestions, onSubmit
     { key: 'B' as const, text: question.option_b_text, insight: question.option_b_insight },
   ]
 
+  const selectedInsight = options.find(o => o.key === selected)?.insight
+
   return (
     <div className="flex flex-col gap-5">
       {/* Progress strip */}
       <div>
         <div className="flex justify-between text-xs text-text-muted mb-2">
           <span>Question {answeredCount + 1} of {totalQuestions}</span>
-          <span>{answeredCount}/{totalQuestions} today</span>
+          <span>{answeredCount}/{totalQuestions} answered</span>
         </div>
         <ProgressBar value={(answeredCount + 1) / Math.max(1, totalQuestions)} />
       </div>
@@ -59,6 +81,10 @@ export function QuestionCard({ question, answeredCount, totalQuestions, onSubmit
         <div className="flex flex-col gap-3 mb-6">
           {options.map(({ key, text }) => {
             const isSelected = selected === key
+            const pct = communityStats && communityStats.total > 0
+              ? Math.round((communityStats[key] / communityStats.total) * 100)
+              : null
+
             return (
               <button
                 key={key}
@@ -77,15 +103,32 @@ export function QuestionCard({ question, answeredCount, totalQuestions, onSubmit
                 }`}>
                   <span className="font-serif text-sm font-bold">{key}</span>
                 </div>
-                <span className={`font-sans text-base leading-relaxed pt-0.5 ${isSelected ? 'text-primary' : 'text-text-secondary'}`}>
-                  {text}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <span className={`font-sans text-base leading-relaxed pt-0.5 ${isSelected ? 'text-primary' : 'text-text-secondary'}`}>
+                    {text}
+                  </span>
+                  {/* Community split bar */}
+                  {submitted && pct !== null && (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs text-text-muted mb-1">
+                        <span>{pct}% chose this</span>
+                        {isSelected && <span className="text-terracotta font-semibold">Your choice</span>}
+                      </div>
+                      <div className="h-1.5 rounded-full bg-outline-variant overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${isSelected ? 'bg-terracotta' : 'bg-text-muted/40'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </button>
             )
           })}
         </div>
 
-        {/* Reflection — always visible */}
+        {/* Reflection */}
         <div className="mb-5">
           <label className="block text-xs font-semibold uppercase tracking-widest text-text-muted mb-2">
             Reflection (optional)
@@ -101,32 +144,51 @@ export function QuestionCard({ question, answeredCount, totalQuestions, onSubmit
         </div>
 
         {/* Insight after submit */}
-        {submitted && options.find(o => o.key === selected)?.insight && (
+        {submitted && selectedInsight && (
           <div className="mb-5 rounded-card border-l-4 border-l-secondary bg-secondary-light/50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-secondary mb-1 flex items-center gap-1">
               <Sparkles className="w-3 h-3" /> Insight
             </p>
-            <p className="text-sm text-text-primary leading-relaxed">
-              {options.find(o => o.key === selected)?.insight}
-            </p>
+            <p className="text-sm text-text-primary leading-relaxed">{selectedInsight}</p>
           </div>
         )}
 
-        {/* Action button */}
+        {/* Community total */}
+        {submitted && communityStats && communityStats.total > 1 && (
+          <p className="text-xs text-text-muted text-center mb-4">
+            {communityStats.total.toLocaleString()} people have answered this question
+          </p>
+        )}
+
+        {/* Actions */}
         {!submitted ? (
-          <button
-            onClick={handleSubmit}
-            disabled={!selected || loading}
-            className="w-full flex items-center justify-center gap-2 rounded-pill bg-terracotta py-3.5 text-sm font-semibold text-white shadow-active hover:opacity-90 transition-opacity disabled:opacity-40"
-          >
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Submit Answer'}
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleSubmit}
+              disabled={!selected || loading}
+              className="w-full flex items-center justify-center gap-2 rounded-pill bg-terracotta py-3.5 text-sm font-semibold text-white shadow-active hover:opacity-90 transition-opacity disabled:opacity-40"
+            >
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Submit Answer'}
+            </button>
+            {showSkip && (
+              <button
+                onClick={handleSkip}
+                disabled={skipping}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-sm text-text-muted hover:text-text-secondary transition-colors"
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+                {skipping ? 'Skipping…' : 'Skip this question'}
+              </button>
+            )}
+          </div>
         ) : (
           <button
             onClick={onNext}
             className="w-full flex items-center justify-center gap-2 rounded-pill bg-secondary py-3.5 text-sm font-semibold text-white shadow-active hover:opacity-90 transition-opacity"
           >
-            {answeredCount + 1 >= totalQuestions ? 'Complete Today' : <><span>Next Question</span><ArrowRight className="w-4 h-4" /></>}
+            {answeredCount + 1 >= totalQuestions
+              ? 'Complete'
+              : <><span>Next Question</span><ArrowRight className="w-4 h-4" /></>}
           </button>
         )}
       </Card>

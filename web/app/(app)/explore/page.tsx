@@ -24,7 +24,7 @@ export default function ExplorePage() {
   const totalQuestions = Object.values(progress).reduce((s, v) => s + v.total, 0)
   const overallPct = totalQuestions ? totalAnswered / totalQuestions : 0
 
-  const categories = Object.entries(CATEGORY_META) as [CategorySlug, { label: string; icon: string }][]
+  const categories = Object.entries(CATEGORY_META) as [CategorySlug, typeof CATEGORY_META[CategorySlug]][]
 
   const recommended = [...categories]
     .map(([slug, meta]) => ({
@@ -74,7 +74,7 @@ export default function ExplorePage() {
               <button key={slug} onClick={() => router.push(`/explore/${slug}`)} className="text-left w-full">
                 <div className={`flex items-center gap-4 rounded-card-lg border p-4 bg-surface-elevated transition-all hover:shadow-card ${done ? 'border-secondary/30' : 'border-border'}`}>
                   <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border border-border ${color}`}>
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1.5">
