@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts } from '../theme';
 
-const LOGO = require('../../assets/logo-leaves.png');
+const LOGO = require('../../assets/new-logo.jpeg');
 
 interface Props {
   userName?: string;
@@ -20,7 +20,7 @@ export const TopHeader: React.FC<Props> = ({ userName, onProfilePress, onMenuPre
         </TouchableOpacity>
 
         <View style={styles.center}>
-          <Text style={styles.logo}>🌿</Text>
+          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
           <Text style={styles.title}>LONGEVITY QUEST</Text>
           <Text style={styles.subtitle}>LIVE LONGER, LIVE BETTER</Text>
         </View>
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  logo: { fontSize: 20, marginBottom: 2 },
+  logo: { width: 40, height: 40, marginBottom: 6 },
   title: {
     fontFamily: fonts.serif,
     fontSize: 13,

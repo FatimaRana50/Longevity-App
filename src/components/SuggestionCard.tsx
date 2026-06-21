@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
+// @ts-ignore
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radii, shadow } from '../theme';
 
 const SPROUT_BOWL = require('../../assets/sprout-bowl.png');
@@ -16,8 +18,13 @@ export const SuggestionCard: React.FC<Props> = ({
   return (
     <View style={styles.card}>
       <Image source={SPROUT_BOWL} style={styles.image} resizeMode="contain" />
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
+      <View style={styles.content}>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
+      </View>
+      <View style={styles.iconBadge}>
+        <Ionicons name="bar-chart" size={20} color={colors.cream} />
+      </View>
     </View>
   );
 };
@@ -26,22 +33,27 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#E8F0DC',
     borderRadius: radii.lg,
-    padding: 24,
+    padding: 20,
+    flexDirection: 'row',
     alignItems: 'center',
     ...shadow.soft,
   },
   image: {
-    width: 80,
-    height: 80,
-    marginBottom: 16,
+    width: 72,
+    height: 72,
+    marginRight: 16,
+    flexShrink: 0,
+  },
+  content: {
+    flex: 1,
+    marginRight: 12,
   },
   title: {
     fontFamily: fonts.serif,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.ink,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 12,
+    lineHeight: 22,
+    marginBottom: 8,
   },
   subtitle: {
     fontFamily: fonts.sans,
@@ -49,6 +61,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     color: colors.terracotta,
     textTransform: 'uppercase',
-    textAlign: 'center',
+  },
+  iconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.sage,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
 });

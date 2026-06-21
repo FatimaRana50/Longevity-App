@@ -1,20 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { colors, fonts } from '../theme';
 
 interface NavItem {
   id: 'daily' | 'explore' | 'journal' | 'profile' | 'more';
   label: string;
-  icon: string;
+  iconName: string;
+  iconLib: 'ionicons' | 'feather';
 }
 
 const navItems: NavItem[] = [
-  { id: 'daily', label: 'Daily Quest', icon: '🌿' },
-  { id: 'explore', label: 'Explore', icon: '🧭' },
-  { id: 'journal', label: 'Journal', icon: '📖' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
-  { id: 'more', label: 'More', icon: '⋯' },
+  { id: 'daily', label: 'Daily Quest', iconName: 'leaf-outline', iconLib: 'ionicons' },
+  { id: 'explore', label: 'Explore', iconName: 'compass-outline', iconLib: 'ionicons' },
+  { id: 'journal', label: 'Journal', iconName: 'book-outline', iconLib: 'ionicons' },
+  { id: 'profile', label: 'Profile', iconName: 'person-outline', iconLib: 'ionicons' },
+  { id: 'more', label: 'More', iconName: 'ellipsis-horizontal-outline', iconLib: 'ionicons' },
 ];
 
 interface Props {
@@ -27,21 +29,27 @@ export const BottomNavigation: React.FC<Props> = ({ active, onPress }) => {
 
   return (
     <View style={[styles.nav, { paddingBottom: insets.bottom }]}>
-      {navItems.map(item => (
-        <TouchableOpacity
-          key={item.id}
-          style={styles.item}
-          onPress={() => onPress(item.id)}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.icon, active === item.id && styles.iconActive]}>
-            {item.icon}
-          </Text>
-          <Text style={[styles.label, active === item.id && styles.labelActive]}>
-            {item.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {navItems.map(item => {
+        const isActive = active === item.id;
+        const iconColor = isActive ? colors.sage : '#9B8B7E';
+        return (
+          <TouchableOpacity
+            key={item.id}
+            style={styles.item}
+            onPress={() => onPress(item.id)}
+            activeOpacity={0.7}
+          >
+            {item.iconLib === 'ionicons' ? (
+              <Ionicons name={item.iconName as any} size={24} color={iconColor} />
+            ) : (
+              <Feather name={item.iconName as any} size={24} color={iconColor} />
+            )}
+            <Text style={[styles.label, isActive && styles.labelActive]}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 };
@@ -60,22 +68,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
   },
-  icon: {
-    fontSize: 20,
-    marginBottom: 4,
-    opacity: 0.5,
-  },
-  iconActive: {
-    opacity: 1,
-  },
   label: {
     fontFamily: fonts.sans,
     fontSize: 10,
-    color: colors.inkMuted,
+    color: '#9B8B7E',
     letterSpacing: 0.3,
+    marginTop: 4,
   },
   labelActive: {
-    color: colors.terracotta,
+    color: colors.sage,
     fontWeight: '600',
   },
 });

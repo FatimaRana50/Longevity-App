@@ -6,6 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+// @ts-ignore
+import { Ionicons } from '@expo/vector-icons';
 import { Question, UserChoice } from '../types/index';
 import { db } from '../services/supabase';
 import { allQuestions } from '../data/all-questions';
@@ -20,10 +22,6 @@ import { BottomNavigation } from '../components/BottomNavigation';
 import { SuggestionCard } from '../components/SuggestionCard';
 import { getCategoryImage } from '../utils/categoryImages';
 
-/**
- * Daily Quest Screen — premium botanical redesign.
- * Shows one question at a time from the day's selection.
- */
 export const QuestionScreen: React.FC = () => {
   const { user } = useUser();
   const navigation = useNavigation<any>();
@@ -69,7 +67,6 @@ export const QuestionScreen: React.FC = () => {
         },
       }));
       await db.saveChoice(userId, q.id, selected, reflection, q.category, archetype);
-      // advance
       setSelected(null);
       setReflection('');
       if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1);
@@ -219,6 +216,7 @@ const OptionCard: React.FC<{
       <Text style={[styles.optionBadgeTxt, selected && { color: colors.cream }]}>{label}</Text>
     </View>
     <Text style={[styles.optionTxt, selected && { color: colors.ink }]}>{text}</Text>
+    <Ionicons name="arrow-forward" size={20} color={selected ? colors.terracotta : colors.inkSoft} />
   </TouchableOpacity>
 );
 
@@ -226,15 +224,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream },
   safe: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  brandRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 24, paddingTop: 8, paddingBottom: 16,
-  },
-  eyebrow: {
-    fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.5,
-    textTransform: 'uppercase', color: colors.terracotta, marginBottom: 2,
-  },
-  brand: { fontFamily: fonts.serif, fontSize: 18, color: colors.ink },
   progressRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     paddingHorizontal: 24, marginBottom: 8,
@@ -291,11 +280,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontFamily: fonts.serif, fontSize: 26, color: colors.ink, textAlign: 'center' },
   emptySub: { fontFamily: fonts.sans, fontSize: 15, color: colors.inkSoft, marginTop: 8, textAlign: 'center' },
-  heroWrap: { borderRadius: radii.lg, overflow: 'hidden', marginBottom: 20, height: 320, justifyContent: 'flex-end' },
+  heroWrap: { borderRadius: radii.lg, overflow: 'hidden', marginBottom: 20, height: 320, justifyContent: 'flex-start' },
   heroImage: { position: 'absolute', width: '100%', height: '100%' },
   heroOverlay: { position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.3)' },
-  heroContent: { padding: 16, zIndex: 1, justifyContent: 'space-between', flex: 1 },
-  heroQuestion: { fontFamily: fonts.serif, fontSize: 25, lineHeight: 30, color: colors.cream, marginTop: 12, letterSpacing: -0.4 },
+  heroContent: { padding: 20, paddingTop: 24, zIndex: 1, justifyContent: 'flex-start', flex: 1 },
+  heroQuestion: { fontFamily: fonts.serif, fontSize: 22, lineHeight: 30, color: colors.cream, marginTop: 8, marginRight: 80, letterSpacing: -0.4 },
   insightWrap: { marginTop: 16, padding: 16, backgroundColor: colors.cardWarm, borderRadius: radii.md, borderLeftWidth: 3, borderLeftColor: colors.terracotta },
   insightLabel: { fontFamily: fonts.sans, fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.terracotta, marginBottom: 4 },
   insightText: { fontFamily: fonts.serif, fontSize: 16, color: colors.ink, lineHeight: 24 },
