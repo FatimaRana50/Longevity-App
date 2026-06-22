@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { couples as couplesApi, billing as billingApi, profile as profileApi, type UserProfile } from '@/lib/api'
+import { couples as couplesApi, profile as profileApi, type UserProfile } from '@/lib/api'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { PremiumUpgradeCard } from '@/components/ui/PremiumUpgradeCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 
 export default function CouplesPage() {
@@ -10,7 +11,7 @@ export default function CouplesPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [inputValue, setInputValue] = useState('')
   const [comparison, setComparison] = useState<{ compatibility: number | null; shared_questions: number; agreements: number } | null>(null)
-  const [loadingState, setLoadingState] = useState<'idle' | 'loading' | 'inviting' | 'joining' | 'upgrading'>('loading')
+  const [loadingState, setLoadingState] = useState<'idle' | 'loading' | 'inviting' | 'joining'>('loading')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
 
@@ -53,16 +54,6 @@ export default function CouplesPage() {
     }
   }
 
-  async function handleUpgrade() {
-    setLoadingState('upgrading')
-    try {
-      const { url } = await billingApi.checkout('monthly')
-      window.location.href = url
-    } finally {
-      setLoadingState('idle')
-    }
-  }
-
   function copyCode() {
     if (!inviteCode) return
     navigator.clipboard.writeText(inviteCode)
@@ -86,20 +77,10 @@ export default function CouplesPage() {
 
       {/* Premium gate */}
       {!isPremium && (
-        <Card variant="featured">
-          <Badge variant="active" className="mb-3">Premium Feature</Badge>
-          <h3 className="font-serif italic text-xl text-primary mb-2">Unlock Couples Mode</h3>
-          <p className="text-text-secondary text-sm mb-4">
-            Compare your longevity values side-by-side with your partner, get a compatibility score, and discover growth areas together.
-          </p>
-          <button
-            onClick={handleUpgrade}
-            disabled={loadingState === 'upgrading'}
-            className="w-full rounded-pill bg-secondary py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {loadingState === 'upgrading' ? 'Redirecting…' : 'Upgrade to Premium — $9.99/mo'}
-          </button>
-        </Card>
+        <PremiumUpgradeCard
+          title="Unlock Couples Mode"
+          description="Compare your longevity values side-by-side with your partner, get a compatibility score, and discover growth areas together."
+        />
       )}
 
       {/* Partner comparison — shown if already paired */}

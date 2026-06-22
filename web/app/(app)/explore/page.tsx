@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
-import { profile as profileApi, type ProfileScores } from '@/lib/api'
+import { profile as profileApi, type ProfileScores, type UserProfile } from '@/lib/api'
 import { Card } from '@/components/ui/Card'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { CATEGORY_META, type CategorySlug } from '@/lib/types'
@@ -10,15 +10,17 @@ import { CATEGORY_META, type CategorySlug } from '@/lib/types'
 export default function ExplorePage() {
   const router = useRouter()
   const [scores, setScores] = useState<ProfileScores | null>(null)
+  const [prof, setProf] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    profileApi.scores()
-      .then(setScores)
+    Promise.all([profileApi.scores(), profileApi.get()])
+      .then(([s, p]) => { setScores(s); setProf(p) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
+  const isFree = prof?.subscription_status === 'free'
   const progress = scores?.categoryProgress ?? {}
   const totalAnswered = scores?.totalAnswered ?? 0
   const totalQuestions = Object.values(progress).reduce((s, v) => s + v.total, 0)
@@ -39,6 +41,17 @@ export default function ExplorePage() {
         <h1 className="font-serif italic text-3xl text-primary">Explore</h1>
         <p className="text-text-secondary text-sm mt-1">All 15 dimensions of longevity</p>
       </div>
+
+      {/* Free plan notice */}
+      {isFree && (
+        <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+          <div>
+            <p className="font-semibold text-text-primary">Free plan · 3 questions/day</p>
+            <p className="text-text-muted text-xs mt-0.5">Upgrade for unlimited access to all categories</p>
+          </div>
+          <a href="/profile" className="rounded-pill bg-secondary px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity shrink-0">Upgrade</a>
+        </div>
+      )}
 
       {/* Overall progress */}
       <Card>

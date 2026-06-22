@@ -24,6 +24,7 @@ export default function JournalPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [sort, setSort] = useState<Sort>('recent')
+  const [view, setView] = useState<'list' | 'timeline'>('list')
   const [search, setSearch] = useState('')
   const [moodFilter, setMoodFilter] = useState<Mood | ''>('')
   const [showForm, setShowForm] = useState(false)
@@ -80,36 +81,40 @@ export default function JournalPage() {
     setExporting(true)
     try {
       const data = await exportApi.journal()
-      // Build a simple text export and trigger download
-      const lines = [
-        `The Longevity Game — Journal Export`,
-        `User: ${data.profile?.name ?? ''} (${data.profile?.email ?? ''})`,
-        `Archetype: ${data.profile?.archetype ?? 'Not yet determined'}`,
-        `Exported: ${new Date(data.exported_at).toLocaleDateString()}`,
-        `Streak: ${data.streak?.current_streak ?? 0} days current`,
-        '',
-        '─'.repeat(60),
-        '',
-        ...data.entries.map(e => [
-          `📅 ${fmt(e.created_at)}`,
-          `📝 ${e.title ?? 'Untitled'}`,
-          e.mood ? `😊 Mood: ${e.mood}` : '',
-          '',
-          e.body,
-          e.tags?.length ? `🏷 Tags: ${e.tags.join(', ')}` : '',
-          '',
-          '─'.repeat(40),
-          '',
-        ].filter(l => l !== undefined).join('\n')),
-      ].join('\n')
-
-      const blob = new Blob([lines], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `longevity-journal-${new Date().toISOString().slice(0, 10)}.txt`
-      a.click()
-      URL.revokeObjectURL(url)
+      const fmt2 = (d: string) => new Intl.DateTimeFormat('en', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(d))
+      const entryHtml = data.entries.map(e => `
+        <div class="entry">
+          <div class="entry-meta">${fmt2(e.created_at)}${e.mood ? ` · ${e.mood}` : ''}</div>
+          <h2>${e.title ?? 'Untitled'}</h2>
+          <p>${e.body.replace(/\n/g, '<br>')}</p>
+          ${e.tags?.length ? `<div class="tags">${e.tags.map((t: string) => `<span>${t}</span>`).join('')}</div>` : ''}
+        </div>
+      `).join('')
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Longevity Journal</title>
+      <style>
+        body { font-family: Georgia, serif; max-width: 700px; margin: 40px auto; color: #1C1C18; line-height: 1.6; }
+        h1 { font-style: italic; font-size: 2rem; color: #3C4A3E; border-bottom: 2px solid #546342; padding-bottom: 12px; }
+        .meta { color: #887369; font-size: 0.85rem; margin-bottom: 32px; }
+        .entry { margin-bottom: 36px; padding-bottom: 36px; border-bottom: 1px solid #E8EAE4; }
+        .entry h2 { font-style: italic; font-size: 1.2rem; color: #3C4A3E; margin: 0 0 8px; }
+        .entry-meta { font-size: 0.78rem; color: #887369; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+        .entry p { color: #4A4E46; margin: 0 0 10px; }
+        .tags span { display: inline-block; background: #E8F0DC; color: #546342; border-radius: 99px; padding: 2px 10px; font-size: 0.75rem; margin-right: 6px; }
+        @media print { body { margin: 20px; } }
+      </style></head><body>
+      <h1>The Longevity Game — Journal</h1>
+      <div class="meta">
+        ${data.profile?.name ?? ''} · Archetype: ${data.profile?.archetype ?? 'In progress'} ·
+        ${data.streak?.current_streak ?? 0} day streak · Exported ${new Date().toLocaleDateString()}
+      </div>
+      ${entryHtml}
+      </body></html>`
+      const win = window.open('', '_blank')
+      if (win) {
+        win.document.write(html)
+        win.document.close()
+        setTimeout(() => win.print(), 400)
+      }
     } catch { /* silent */ } finally {
       setExporting(false)
     }
@@ -127,9 +132,10 @@ export default function JournalPage() {
             onClick={handleExport}
             disabled={exporting || entries.length === 0}
             className="flex items-center gap-1.5 rounded-pill border border-border px-3 py-2.5 text-sm font-medium text-text-secondary hover:border-primary hover:text-primary transition-colors disabled:opacity-40"
-            title="Export journal"
+            title="Export as PDF"
           >
             <Download className="w-4 h-4" />
+            <span className="hidden sm:inline text-xs">PDF</span>
           </button>
           <button
             onClick={openForm}
@@ -184,6 +190,14 @@ export default function JournalPage() {
               {s === 'recent' ? 'Recent' : 'A–Z'}
             </button>
           ))}
+          <button onClick={() => setView('list')}
+            className={`rounded-pill border px-3 py-1.5 text-xs font-semibold transition-colors ${view === 'list' ? 'bg-primary border-primary text-white' : 'border-border text-text-secondary hover:border-primary/40'}`}>
+            List
+          </button>
+          <button onClick={() => setView('timeline')}
+            className={`rounded-pill border px-3 py-1.5 text-xs font-semibold transition-colors ${view === 'timeline' ? 'bg-primary border-primary text-white' : 'border-border text-text-secondary hover:border-primary/40'}`}>
+            Timeline
+          </button>
         </div>
       </div>
 
@@ -208,6 +222,50 @@ export default function JournalPage() {
             </>
           )}
         </div>
+      ) : view === 'timeline' ? (
+        (() => {
+          const groups: Record<string, JournalEntry[]> = {}
+          filtered.forEach(e => {
+            const key = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' }).format(new Date(e.created_at))
+            if (!groups[key]) groups[key] = []
+            groups[key].push(e)
+          })
+          return (
+            <div className="flex flex-col gap-0">
+              {Object.entries(groups).map(([month, monthEntries]) => (
+                <div key={month} className="flex gap-4">
+                  <div className="flex flex-col items-center w-16 shrink-0">
+                    <div className="w-2.5 h-2.5 rounded-full bg-secondary mt-1.5 shrink-0" />
+                    <div className="w-0.5 bg-border flex-1 mt-1" />
+                  </div>
+                  <div className="flex-1 pb-8">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-secondary mb-3 -mt-0.5">{month}</p>
+                    <div className="flex flex-col gap-3">
+                      {monthEntries.map(entry => {
+                        const accent = accentFor(entry.title ?? 'entry')
+                        return (
+                          <div key={entry.id} className="rounded-card-lg border border-border bg-surface-elevated p-4"
+                            style={{ borderLeftWidth: 3, borderLeftColor: accent }}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: accent }}>
+                                {entry.mood ? `${MOOD_EMOJI[entry.mood as Mood] ?? ''} ${entry.mood}` : 'Journal'}
+                              </span>
+                              <span className="text-xs text-text-muted">
+                                {new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(entry.created_at))}
+                              </span>
+                            </div>
+                            <p className="font-serif text-sm text-primary leading-snug mb-1">{entry.title}</p>
+                            <p className="font-serif italic text-xs text-text-secondary leading-relaxed line-clamp-2">{entry.body}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        })()
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map(entry => {

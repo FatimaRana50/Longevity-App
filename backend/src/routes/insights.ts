@@ -4,7 +4,14 @@ import { supabase } from '../services/supabase'
 import { requireAuth, AuthRequest } from '../middleware/auth'
 import { requirePremium } from '../middleware/premium'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+let openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.includes('your_')) {
+    throw new Error('OpenAI API key not configured')
+  }
+  if (!openai) openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return openai
+}
 
 const router = Router()
 
@@ -51,7 +58,7 @@ router.post('/generate', requireAuth, requirePremium, async (req, res: Response)
     }, {})
   ).map(([cat, v]) => `${cat}: ${v.A}x A, ${v.B}x B`).join('\n')
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [
       {

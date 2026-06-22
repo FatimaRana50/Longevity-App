@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sparkles, RefreshCw, Lock } from 'lucide-react'
+import { Sparkles, RefreshCw } from 'lucide-react'
 import { insights as insightsApi, profile as profileApi, billing as billingApi, type Insight, type UserProfile } from '@/lib/api'
 import { Card } from '@/components/ui/Card'
+import { PremiumUpgradeCard } from '@/components/ui/PremiumUpgradeCard'
 
 const INSIGHT_TYPES = [
   { type: 'general',    emoji: '🧠', label: 'Overall Pattern',   desc: 'A summary of your longevity philosophy' },
@@ -20,7 +21,7 @@ export default function InsightsPage() {
   const [prof, setProf]         = useState<UserProfile | null>(null)
   const [insightList, setInsightList] = useState<Insight[]>([])
   const [generating, setGenerating] = useState<string | null>(null)
-  const [upgrading, setUpgrading]   = useState(false)
+  const [upgrading, setUpgrading]   = useState(false) // kept for TS, unused after refactor
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState('')
 
@@ -73,27 +74,10 @@ export default function InsightsPage() {
 
       {/* Premium gate */}
       {!isPremium && (
-        <Card variant="featured">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
-              <Lock className="w-5 h-5 text-secondary" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-secondary">Premium Feature</p>
-              <p className="font-serif italic text-lg text-primary">Unlock AI Insights</p>
-            </div>
-          </div>
-          <p className="text-sm text-text-secondary mb-4">
-            Get personalised analysis of your longevity patterns, mindset tendencies, and growth areas — generated fresh each day.
-          </p>
-          <button
-            onClick={handleUpgrade}
-            disabled={upgrading}
-            className="w-full rounded-pill bg-secondary py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {upgrading ? 'Redirecting…' : 'Upgrade to Premium — $9.99/mo'}
-          </button>
-        </Card>
+        <PremiumUpgradeCard
+          title="Unlock AI Insights"
+          description="Get personalised analysis of your longevity patterns, mindset tendencies, and growth areas — generated fresh each day."
+        />
       )}
 
       {/* Insight generators */}

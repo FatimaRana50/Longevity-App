@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Leaf, Map, BookOpen, User, Share2, Heart, Sparkles, LogOut, Users } from 'lucide-react'
+import { Leaf, Map, BookOpen, User, Heart, Sparkles, LogOut, Users } from 'lucide-react'
 import { clearSession } from '@/lib/api'
 
 const NAV = [
@@ -10,10 +10,9 @@ const NAV = [
   { href: '/explore',  icon: Map,      label: 'Explore' },
   { href: '/journal',  icon: BookOpen, label: 'Journal' },
   { href: '/insights', icon: Sparkles, label: 'AI Insights' },
-  { href: '/profile',  icon: User,     label: 'Profile' },
   { href: '/friends',  icon: Users,    label: 'Friends' },
-  { href: '/share',    icon: Share2,   label: 'Share' },
   { href: '/couples',  icon: Heart,    label: 'Couples' },
+  { href: '/profile',  icon: User,     label: 'Profile' },
 ]
 
 export function Sidebar({ userName, userEmail }: { userName: string; userEmail?: string }) {

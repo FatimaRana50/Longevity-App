@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Link2, Check } from 'lucide-react'
+import { Link2, Check, ImageDown } from 'lucide-react'
 import { profile as profileApi, type UserProfile, type ProfileScores } from '@/lib/api'
 import { Card } from '@/components/ui/Card'
 import { ARCHETYPE_META } from '@/lib/types'
@@ -24,6 +24,19 @@ export default function SharePage() {
   const totalAnswered = scores?.totalAnswered ?? 0
   const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://thelongevitygame.com'
   const shareText = SHARE_TEXT(archetypeLabel, totalAnswered)
+
+  const ogImageUrl = prof?.archetype
+    ? `${shareUrl}/api/og?archetype=${encodeURIComponent(prof.archetype)}&name=${encodeURIComponent(prof.name ?? '')}&answered=${totalAnswered}`
+    : null
+
+  function handleDownloadCard() {
+    if (!ogImageUrl) return
+    const a = document.createElement('a')
+    a.href = ogImageUrl
+    a.download = 'my-longevity-archetype.png'
+    a.target = '_blank'
+    a.click()
+  }
 
   function handleCopy() {
     navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`)
@@ -114,6 +127,13 @@ export default function SharePage() {
           className="w-full flex items-center justify-center gap-2 rounded-pill bg-secondary py-3.5 text-sm font-semibold text-white shadow-active hover:opacity-90 transition-opacity">
           {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Link2 className="w-4 h-4" /> Copy Link</>}
         </button>
+
+        {ogImageUrl && (
+          <button onClick={handleDownloadCard}
+            className="w-full flex items-center justify-center gap-2 rounded-pill border border-border py-3.5 text-sm font-medium text-text-secondary hover:border-secondary hover:text-secondary transition-colors">
+            <ImageDown className="w-4 h-4" /> Download Share Card
+          </button>
+        )}
       </div>
 
       <Card>
